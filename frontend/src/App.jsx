@@ -2,11 +2,13 @@ import { useState } from 'react'
 import './App.css'
 import Editor from "@monaco-editor/react";
 import axios from "axios";
+import Landing from "./Landing";
 
 function App() {
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [screen, setScreen] = useState("landing");
 
   const [drums] = useState(new Audio("/audio/drums.wav"));
   const [chords] = useState(new Audio("/audio/chords.mp3"));
@@ -113,6 +115,11 @@ function App() {
   };*/
 
   return (
+    <>
+       {screen === "landing" ? (  
+      <Landing setScreen={setScreen} />  
+    ) : (
+
     <div className="container">
 
       {/* LEFT PANEL */}
@@ -162,6 +169,8 @@ function App() {
       </div>
 
     </div>
+  )}
+    </>
   );
 }
 
