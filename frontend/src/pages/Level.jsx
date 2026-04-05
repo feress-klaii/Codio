@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import axios from "axios";
 import { levels } from "../data/levels";
+import { mockRunCode } from "../utils/Mockrunner";
 import "./Level.css";
+
+// 🔧 SET THIS TO false WHEN BACKEND IS READY
+const USE_MOCK = true;
 
 function Level({ level, setScreen, unlockLevel }) {
   const [code, setCode] = useState(level.starterCode);
@@ -97,28 +100,35 @@ function Level({ level, setScreen, unlockLevel }) {
     setLoading(true);
     setOutput("");
 
+    await new Promise((r) => setTimeout(r, 600));
+
     try {
-      const res = await axios.post("http://127.0.0.1:8000/run-code", {
-        code,
-        expected_output: level.expectedOutput,
-      });
+      let result;
 
-      setOutput(res.data.output);
+      if (USE_MOCK) {
+        result = mockRunCode(code, level.expectedOutput);
+      } else {
+        const axios = (await import("axios")).default;
+        const res = await axios.post("http://127.0.0.1:8000/run-code", {
+          code,
+          expected_output: level.expectedOutput,
+        });
+        result = res.data;
+      }
 
-      const analysis = res.data.analysis || {};
-      const score = applyMusicLayers(analysis);
+      setOutput(result.output);
+      applyMusicLayers(result.analysis);
 
-      if (
-        res.data.output.trim() === level.expectedOutput.trim() &&
-        !res.data.syntax_error
-      ) {
+      if (result.analysis.correct_output && !result.analysis.syntax_error) {
         setTimeout(() => {
           setCompleted(true);
           unlockLevel(level.id + 1);
         }, 1200);
       }
+
     } catch (err) {
-      setOutput("// ERROR: Could not connect to backend.\n// Make sure the server is running on port 8000.");
+      setOutput("// ERROR: Something went wrong.\n// Check the console for details.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -164,6 +174,11 @@ function Level({ level, setScreen, unlockLevel }) {
           <div className="editor-wrapper">
             <div className="editor-label">
               <span>[ CODE_EDITOR.py ]</span>
+              {USE_MOCK && (
+                <span style={{ color: "var(--accent-purple)", marginLeft: "12px" }}>
+                  ⚠ MOCK MODE — no backend
+                </span>
+              )}
             </div>
             <Editor
               height="320px"
@@ -185,8 +200,11 @@ function Level({ level, setScreen, unlockLevel }) {
             <button className="btn" onClick={runCode} disabled={loading}>
               {loading ? "[ EXECUTING... ]" : "[ RUN CODE ]"}
             </button>
-            <button className="btn" style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
-              onClick={() => setCode(level.starterCode)}>
+            <button
+              className="btn"
+              style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
+              onClick={() => { setCode(level.starterCode); stopAll(); setOutput(""); }}
+            >
               RESET
             </button>
           </div>
