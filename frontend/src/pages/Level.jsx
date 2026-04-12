@@ -2,103 +2,155 @@ import React, { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { levels } from "../data/levels";
 import { mockRunCode } from "../utils/Mockrunner";
+import XTerminal from "../components/XTerminal";
 import "./Level.css";
 
-// 🔧 SET THIS TO false WHEN BACKEND IS READY
+// 🔧 SET TO false WHEN BACKEND IS READY
 const USE_MOCK = true;
 
-function Level({ level, setScreen, unlockLevel }) {
-  const [code, setCode] = useState(level.starterCode);
-  const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [songRevealed, setSongRevealed] = useState(false);
-  const [activeLayers, setActiveLayers] = useState({ drums: false, chords: false, bass: false });
-  const [harmonyScore, setHarmonyScore] = useState(0);
+const LAYER_DELAYS = {
+  drums:  0.6,
+  chords: 0.9,
+  bass:   0.4,
+};
 
-  const drumsRef = useRef(null);
-  const chordsRef = useRef(null);
-  const bassRef = useRef(null);
+const LAYER_CONFIG = [
+  { key: "drums",  label: "DRUMS",  desc: "Loops detected",     color: "var(--accent-cyan)"   },
+  { key: "chords", label: "CHORDS", desc: "Conditions detected", color: "var(--accent-purple)" },
+  { key: "bass",   label: "BASS",   desc: "Functions detected",  color: "var(--accent-pink)"   },
+];
+
+function Level({ level, setScreen, unlockLevel }) {
+  const [code, setCode]                 = useState(level.starterCode);
+  const [loading, setLoading]           = useState(false);
+  const [completed, setCompleted]       = useState(false);
+  const [songRevealed, setSongRevealed] = useState(false);
+  const [harmonyScore, setHarmonyScore] = useState(0);
+  const [refPlaying, setRefPlaying]     = useState(false);
+  const [layerStates, setLayerStates]   = useState({
+    drums:  { active: false, synced: false, volume: 0 },
+    chords: { active: false, synced: false, volume: 0 },
+    bass:   { active: false, synced: false, volume: 0 },
+  });
+
+  const termRef      = useRef(null);
+  const drumsRef     = useRef(null);
+  const chordsRef    = useRef(null);
+  const bassRef      = useRef(null);
+  const refDrumsRef  = useRef(null);
+  const refChordsRef = useRef(null);
+  const refBassRef   = useRef(null);
 
   useEffect(() => {
-    drumsRef.current = new Audio("/audio/drums.wav");
+    drumsRef.current  = new Audio("/audio/drums.wav");
     chordsRef.current = new Audio("/audio/chords.mp3");
-    bassRef.current = new Audio("/audio/bass.wav");
-
-    drumsRef.current.loop = true;
+    bassRef.current   = new Audio("/audio/bass.wav");
+    drumsRef.current.loop  = true;
     chordsRef.current.loop = true;
-    bassRef.current.loop = true;
+    bassRef.current.loop   = true;
+
+    refDrumsRef.current  = new Audio("/audio/drums.wav");
+    refChordsRef.current = new Audio("/audio/chords.mp3");
+    refBassRef.current   = new Audio("/audio/bass.wav");
+    refDrumsRef.current.loop    = true;
+    refChordsRef.current.loop   = true;
+    refBassRef.current.loop     = true;
+    refDrumsRef.current.volume  = 1;
+    refChordsRef.current.volume = 1;
+    refBassRef.current.volume   = 1;
 
     return () => {
-      [drumsRef, chordsRef, bassRef].forEach((ref) => {
-        if (ref.current) {
-          ref.current.pause();
-          ref.current.src = "";
-        }
+      [drumsRef, chordsRef, bassRef,
+       refDrumsRef, refChordsRef, refBassRef].forEach((ref) => {
+        if (ref.current) { ref.current.pause(); ref.current.src = ""; }
       });
     };
   }, []);
 
-  const setVolume = (ref, volume) => {
-    if (ref.current) ref.current.volume = Math.max(0, Math.min(1, volume));
+  const playReference = () => {
+    [refDrumsRef, refChordsRef, refBassRef].forEach((ref) => {
+      if (ref.current) { ref.current.currentTime = 0; ref.current.play().catch(() => {}); }
+    });
+    setRefPlaying(true);
   };
 
-  const playLayer = (ref) => {
-    if (ref.current) {
-      ref.current.currentTime = 0;
-      ref.current.play().catch(() => {});
-    }
+  const stopReference = () => {
+    [refDrumsRef, refChordsRef, refBassRef].forEach((ref) => {
+      if (ref.current) { ref.current.pause(); ref.current.currentTime = 0; }
+    });
+    setRefPlaying(false);
   };
 
   const stopAll = () => {
     [drumsRef, chordsRef, bassRef].forEach((ref) => {
-      if (ref.current) {
-        ref.current.pause();
-        ref.current.currentTime = 0;
-      }
+      if (ref.current) { ref.current.pause(); ref.current.currentTime = 0; }
     });
-    setActiveLayers({ drums: false, chords: false, bass: false });
+    stopReference();
+    setLayerStates({
+      drums:  { active: false, synced: false, volume: 0 },
+      chords: { active: false, synced: false, volume: 0 },
+      bass:   { active: false, synced: false, volume: 0 },
+    });
     setHarmonyScore(0);
   };
 
+  const playLayerWithSync = (ref, volume, synced, layerKey) => {
+    if (!ref.current) return;
+    ref.current.volume = Math.max(0, Math.min(1, volume));
+    ref.current.currentTime = synced ? 0 : LAYER_DELAYS[layerKey];
+    ref.current.play().catch(() => {});
+  };
+
   const applyMusicLayers = (analysis) => {
-    const newLayers = { drums: false, chords: false, bass: false };
+    const { loops, conditions, function_presence, syntax_error, correct_output } = analysis;
+
+    const drumWeight  = syntax_error ? 0 : Math.min(loops, 1);
+    const chordWeight = syntax_error ? 0 : Math.min(conditions, 1);
+    const bassWeight  = syntax_error ? 0 : (function_presence ? 1 : 0);
+
+    const drumSynced  = drumWeight  > 0 && correct_output;
+    const chordSynced = chordWeight > 0 && correct_output;
+    const bassSynced  = bassWeight  > 0 && correct_output;
+
+    if (drumWeight > 0) {
+      playLayerWithSync(drumsRef,  drumWeight * 0.85,  drumSynced,  "drums");
+    } else {
+      if (drumsRef.current) { drumsRef.current.pause(); drumsRef.current.currentTime = 0; }
+    }
+
+    if (chordWeight > 0) {
+      playLayerWithSync(chordsRef, chordWeight * 0.75, chordSynced, "chords");
+    } else {
+      if (chordsRef.current) { chordsRef.current.pause(); chordsRef.current.currentTime = 0; }
+    }
+
+    if (bassWeight > 0) {
+      playLayerWithSync(bassRef,   bassWeight * 0.70,  bassSynced,  "bass");
+    } else {
+      if (bassRef.current) { bassRef.current.pause(); bassRef.current.currentTime = 0; }
+    }
+
     let score = 0;
+    if (drumWeight  > 0) score += drumSynced  ? 35 : Math.round(drumWeight  * 20);
+    if (chordWeight > 0) score += chordSynced ? 30 : Math.round(chordWeight * 15);
+    if (bassWeight  > 0) score += bassSynced  ? 25 : Math.round(bassWeight  * 12);
+    if (correct_output && !syntax_error) score += 10;
 
-    if (analysis.loops > 0) {
-      playLayer(drumsRef);
-      setVolume(drumsRef, 0.8);
-      newLayers.drums = true;
-      score += 30;
-    }
+    const finalScore = Math.min(100, score);
 
-    if (analysis.conditions > 0) {
-      playLayer(chordsRef);
-      setVolume(chordsRef, 0.7);
-      newLayers.chords = true;
-      score += 25;
-    }
-
-    if (analysis.function_presence) {
-      playLayer(bassRef);
-      setVolume(bassRef, 0.6);
-      newLayers.bass = true;
-      score += 25;
-    }
-
-    if (analysis.syntax_error === false && analysis.correct_output === true) {
-      score += 20;
-    }
-
-    setActiveLayers(newLayers);
-    setHarmonyScore(score);
-    return score;
+    setLayerStates({
+      drums:  { active: drumWeight  > 0, synced: drumSynced,  volume: drumWeight  },
+      chords: { active: chordWeight > 0, synced: chordSynced, volume: chordWeight },
+      bass:   { active: bassWeight  > 0, synced: bassSynced,  volume: bassWeight  },
+    });
+    setHarmonyScore(finalScore);
+    return finalScore;
   };
 
   const runCode = async () => {
     stopAll();
     setLoading(true);
-    setOutput("");
+    termRef.current?.writeLoading();
 
     await new Promise((r) => setTimeout(r, 600));
 
@@ -116,10 +168,10 @@ function Level({ level, setScreen, unlockLevel }) {
         result = res.data;
       }
 
-      setOutput(result.output);
-      applyMusicLayers(result.analysis);
+      termRef.current?.writeOutput(result.output);
+      const score = applyMusicLayers(result.analysis);
 
-      if (result.analysis.correct_output && !result.analysis.syntax_error) {
+      if (result.analysis.correct_output && !result.analysis.syntax_error && score >= 90) {
         setTimeout(() => {
           setCompleted(true);
           unlockLevel(level.id + 1);
@@ -127,7 +179,7 @@ function Level({ level, setScreen, unlockLevel }) {
       }
 
     } catch (err) {
-      setOutput("// ERROR: Something went wrong.\n// Check the console for details.");
+      termRef.current?.writeOutput("ERROR: Something went wrong.\nCheck the console for details.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -138,7 +190,7 @@ function Level({ level, setScreen, unlockLevel }) {
 
   return (
     <div className="level-screen scanlines">
-      {/* TOP BAR */}
+
       <div className="level-topbar">
         <button className="btn-back-small" onClick={() => { stopAll(); setScreen("levelselect"); }}>
           ← LEVELS
@@ -152,23 +204,29 @@ function Level({ level, setScreen, unlockLevel }) {
           <div className="harmony-bar">
             <div
               className="harmony-fill"
-              style={{ width: `${harmonyScore}%` }}
+              style={{
+                width: `${harmonyScore}%`,
+                background: harmonyScore === 100
+                  ? "var(--accent-green)"
+                  : "linear-gradient(90deg, var(--accent-purple), var(--accent-cyan))",
+              }}
             />
           </div>
-          <span className="harmony-score">{harmonyScore}%</span>
+          <span
+            className="harmony-score"
+            style={{ color: harmonyScore === 100 ? "var(--accent-green)" : "var(--accent-cyan)" }}
+          >
+            {harmonyScore}%
+          </span>
         </div>
       </div>
 
-      {/* MAIN LAYOUT */}
       <div className="level-layout">
-        {/* LEFT: CHALLENGE + EDITOR */}
         <div className="level-left">
           <div className="challenge-block corner-accent">
             <div className="challenge-label">[ MISSION BRIEF ]</div>
             <p className="challenge-text">{level.challenge}</p>
-            {level.hint && (
-              <p className="challenge-hint">Hint: {level.hint}</p>
-            )}
+            {level.hint && <p className="challenge-hint">Hint: {level.hint}</p>}
           </div>
 
           <div className="editor-wrapper">
@@ -203,67 +261,123 @@ function Level({ level, setScreen, unlockLevel }) {
             <button
               className="btn"
               style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
-              onClick={() => { setCode(level.starterCode); stopAll(); setOutput(""); }}
+              onClick={() => { setCode(level.starterCode); stopAll(); termRef.current?.clear(); }}
             >
               RESET
             </button>
           </div>
 
-          <div className="terminal corner-accent">
+          {/* XTERM TERMINAL — replaces old <pre> terminal */}
+          <div className="terminal-wrapper corner-accent">
             <div className="terminal-label">[ OUTPUT ]</div>
-            <pre className="terminal-output">
-              {output || "// Waiting for execution..."}
-            </pre>
+            <XTerminal ref={termRef} />
           </div>
         </div>
 
-        {/* RIGHT: MUSIC PANEL */}
         <div className="level-right">
-          <div className="music-panel corner-accent">
-            <div className="music-panel-label">[ MUSIC_ENGINE ]</div>
-
-            <div className="layers-list">
-              {[
-                { key: "drums", label: "DRUMS", desc: "Loops detected", color: "var(--accent-cyan)" },
-                { key: "chords", label: "CHORDS", desc: "Conditions detected", color: "var(--accent-purple)" },
-                { key: "bass", label: "BASS", desc: "Functions detected", color: "var(--accent-pink)" },
-              ].map((layer) => (
+          <div className="reference-panel corner-accent">
+            <div className="reference-label">[ REFERENCE_TRACK ]</div>
+            <p className="reference-desc">
+              This is what 100% harmony sounds like.<br />
+              Make your code match it.
+            </p>
+            <div className="reference-layers">
+              {LAYER_CONFIG.map((layer) => (
                 <div
                   key={layer.key}
-                  className={`layer-item ${activeLayers[layer.key] ? "active" : ""}`}
+                  className="reference-layer-row"
                   style={{ "--layer-color": layer.color }}
                 >
-                  <div className="layer-dot" />
-                  <div className="layer-info">
-                    <span className="layer-name">{layer.label}</span>
-                    <span className="layer-desc">{layer.desc}</span>
-                  </div>
-                  <div className="layer-wave">
-                    {activeLayers[layer.key] ? (
-                      [...Array(5)].map((_, i) => (
-                        <span key={i} className="wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
-                      ))
-                    ) : (
-                      <span className="layer-inactive">—</span>
-                    )}
+                  <div className="ref-dot" />
+                  <span className="ref-layer-name">{layer.label}</span>
+                  <div className="ref-wave">
+                    {[...Array(5)].map((_, i) => (
+                      <span
+                        key={i}
+                        className={`wave-bar ${refPlaying ? "" : "wave-paused"}`}
+                        style={{ animationDelay: `${i * 0.1}s` }}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
+            <button
+              className={`btn ${refPlaying ? "" : "btn-green"}`}
+              style={{
+                width: "100%",
+                marginTop: "12px",
+                ...(refPlaying && { borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }),
+              }}
+              onClick={refPlaying ? stopReference : playReference}
+            >
+              {refPlaying ? "⏹ STOP REFERENCE" : "▶ PLAY REFERENCE"}
+            </button>
+          </div>
 
-            <button className="btn" style={{ width: "100%", marginTop: "16px" }} onClick={stopAll}>
+          <div className="music-panel corner-accent">
+            <div className="music-panel-label">[ LIVE_ENGINE ]</div>
+            <div className="layers-list">
+              {LAYER_CONFIG.map((layer) => {
+                const state = layerStates[layer.key];
+                return (
+                  <div
+                    key={layer.key}
+                    className={`layer-item ${state.active ? "active" : ""} ${state.synced ? "synced" : ""}`}
+                    style={{ "--layer-color": layer.color }}
+                  >
+                    <div className="layer-dot" />
+                    <div className="layer-info">
+                      <span className="layer-name">{layer.label}</span>
+                      <span className="layer-desc">
+                        {state.active
+                          ? state.synced ? "✓ IN SYNC" : "⚠ DRIFTING"
+                          : layer.desc}
+                      </span>
+                    </div>
+                    <div className="layer-right-col">
+                      <div className="layer-vol-bar">
+                        <div
+                          className="layer-vol-fill"
+                          style={{ height: `${state.volume * 100}%` }}
+                        />
+                      </div>
+                      <div className="layer-wave">
+                        {state.active ? (
+                          [...Array(5)].map((_, i) => (
+                            <span
+                              key={i}
+                              className={`wave-bar ${state.synced ? "" : "drifting-wave"}`}
+                              style={{ animationDelay: `${i * 0.1}s` }}
+                            />
+                          ))
+                        ) : (
+                          <span className="layer-inactive">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              className="btn"
+              style={{ width: "100%", marginTop: "16px", borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
+              onClick={stopAll}
+            >
               STOP ALL
             </button>
           </div>
 
-          {/* SONG REVEAL on completion */}
           {completed && (
             <div className="song-reveal corner-accent">
               <div className="song-reveal-label">[ LEVEL COMPLETE ]</div>
               <div className="song-reveal-score">HARMONY: {harmonyScore}%</div>
               {!songRevealed ? (
                 <>
-                  <p className="song-reveal-desc">Your code sang perfectly.<br />The song has been unlocked.</p>
+                  <p className="song-reveal-desc">
+                    Your code sang perfectly.<br />The song has been unlocked.
+                  </p>
                   <button className="btn btn-green" onClick={() => setSongRevealed(true)}>
                     REVEAL SONG NAME
                   </button>

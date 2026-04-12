@@ -29,7 +29,7 @@ function Landing({ setScreen }) {
       <div className="landing-content">
         <div className="logo-wrapper">
           <div className="logo-tag">&lt; system.boot /&gt;</div>
-          <h1 className="logo glitch">CODIO</h1>
+          <h1 className="logo glitch">CODIO_</h1>
           <div className="logo-sub">v0.1.0 — ALPHA BUILD</div>
         </div>
 
