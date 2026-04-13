@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
+import axios from "axios";
 import { levels } from "../data/levels";
 import { mockRunCode } from "../utils/Mockrunner";
 import XTerminal from "../components/XTerminal";
 import "./Level.css";
 
-// 🔧 SET TO false WHEN BACKEND IS READY
-const USE_MOCK = true;
+// 🔧 SET TO true TO USE MOCK (no backend), false TO USE REAL BACKEND
+const USE_MOCK =false;
 
 const LAYER_DELAYS = {
   drums:  0.6,
@@ -160,7 +161,6 @@ function Level({ level, setScreen, unlockLevel }) {
       if (USE_MOCK) {
         result = mockRunCode(code, level.expectedOutput);
       } else {
-        const axios = (await import("axios")).default;
         const res = await axios.post("http://127.0.0.1:8000/run-code", {
           code,
           expected_output: level.expectedOutput,
@@ -171,7 +171,7 @@ function Level({ level, setScreen, unlockLevel }) {
       termRef.current?.writeOutput(result.output);
       const score = applyMusicLayers(result.analysis);
 
-      if (result.analysis.correct_output && !result.analysis.syntax_error && score >= 90) {
+      if (result.analysis.correct_output && !result.analysis.syntax_error && score >= 40) {
         setTimeout(() => {
           setCompleted(true);
           unlockLevel(level.id + 1);

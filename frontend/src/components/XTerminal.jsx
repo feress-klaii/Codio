@@ -123,7 +123,7 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
         height: "160px",
         background: "#050810",
         border: "1px solid var(--border-color)",
-        padding: "8px",
+        padding: "4px",
         boxSizing: "border-box",
         overflow: "hidden",
       }}
