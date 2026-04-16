@@ -3,13 +3,6 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-// XTerminal — a real terminal emulator component
-// Usage:
-//   const termRef = useRef();
-//   <XTerminal ref={termRef} />
-//   termRef.current.write("hello world");
-//   termRef.current.clear();
-
 const XTerminal = forwardRef(function XTerminal(_, ref) {
   const containerRef = useRef(null);
   const termRef      = useRef(null);
@@ -22,18 +15,18 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
       fontFamily: "'Share Tech Mono', 'Courier New', monospace",
       theme: {
         background:    "#050810",
-        foreground:    "#00ff9c",   // accent-green — default output color
+        foreground:    "#00ff9c",
         black:         "#050810",
         brightBlack:   "#4a5568",
-        red:           "#ff2d78",   // accent-pink — errors
+        red:           "#ff2d78",
         brightRed:     "#ff2d78",
-        green:         "#00ff9c",   // accent-green — success
+        green:         "#00ff9c",
         brightGreen:   "#00ff9c",
-        yellow:        "#f6e05e",
-        brightYellow:  "#faf089",
-        blue:          "#00f5ff",   // accent-cyan
+        yellow:        "#f6ad55",   // orange — wrong output
+        brightYellow:  "#fbd38d",
+        blue:          "#00f5ff",
         brightBlue:    "#00f5ff",
-        magenta:       "#b044ff",   // accent-purple
+        magenta:       "#b044ff",
         brightMagenta: "#b044ff",
         cyan:          "#00f5ff",
         brightCyan:    "#00f5ff",
@@ -43,8 +36,8 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
         selectionBackground: "#00f5ff33",
       },
       scrollback: 500,
-      convertEol: true,     // \n → \r\n automatically
-      disableStdin: true,   // read-only — user types in Monaco, not here
+      convertEol: true,
+      disableStdin: true,
     });
 
     const fitAddon = new FitAddon();
@@ -55,11 +48,9 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
     termRef.current     = term;
     fitAddonRef.current = fitAddon;
 
-    // Initial prompt line
     term.writeln("\x1b[36m[ CODIO OUTPUT TERMINAL ]\x1b[0m");
     term.writeln("\x1b[90m// Waiting for execution...\x1b[0m");
 
-    // Refit on window resize
     const handleResize = () => fitAddon.fit();
     window.addEventListener("resize", handleResize);
 
@@ -69,10 +60,10 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
     };
   }, []);
 
-  // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
-    // Write raw output from code execution
-    writeOutput(text) {
+
+    // mode: "success" → green, "wrong" → orange, "error" → red
+    writeOutput(text, mode = "success") {
       if (!termRef.current) return;
       termRef.current.reset();
       termRef.current.writeln("\x1b[36m[ OUTPUT ]\x1b[0m");
@@ -82,23 +73,29 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
         return;
       }
 
-      // Color errors red, normal output green
-      const isError = /error|exception|traceback/i.test(text);
-      const color   = isError ? "\x1b[91m" : "\x1b[92m";
-      const reset   = "\x1b[0m";
+      // color codes: green=92, orange/yellow=93, red=91
+      const colorCode = mode === "error" ? "91" : mode === "wrong" ? "93" : "92";
 
       text.split("\n").forEach((line) => {
-        termRef.current.writeln(`${color}${line}${reset}`);
+        termRef.current.writeln(`\x1b[${colorCode}m${line}\x1b[0m`);
       });
     },
 
-    // Show a status/info message in cyan
+    // Orange hint shown below wrong output
+    writeHint(text) {
+      if (!termRef.current) return;
+      termRef.current.writeln("");
+      termRef.current.writeln("\x1b[33m⚠ OUTPUT MISMATCH\x1b[0m");
+      text.split("\n").forEach((line) => {
+        termRef.current.writeln(`\x1b[33m  ${line}\x1b[0m`);
+      });
+    },
+
     writeInfo(text) {
       if (!termRef.current) return;
       termRef.current.writeln(`\x1b[36m${text}\x1b[0m`);
     },
 
-    // Show executing indicator
     writeLoading() {
       if (!termRef.current) return;
       termRef.current.reset();
@@ -106,7 +103,6 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
       termRef.current.writeln("\x1b[90m// Executing...\x1b[0m");
     },
 
-    // Full clear
     clear() {
       if (!termRef.current) return;
       termRef.current.reset();
@@ -122,8 +118,6 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
         width: "100%",
         height: "160px",
         background: "#050810",
-        border: "1px solid var(--border-color)",
-        padding: "4px",
         boxSizing: "border-box",
         overflow: "hidden",
       }}
