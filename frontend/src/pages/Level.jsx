@@ -7,7 +7,7 @@ import XTerminal from "../components/XTerminal";
 import "./Level.css";
 
 // 🔧 SET TO true TO USE MOCK (no backend), false TO USE REAL BACKEND
-const USE_MOCK =false;
+const USE_MOCK = false;
 
 const LAYER_DELAYS = {
   drums:  0.6,
@@ -95,6 +95,16 @@ function Level({ level, setScreen, unlockLevel }) {
     setHarmonyScore(0);
   };
 
+  // ── Full level reset ──
+  const resetLevel = () => {
+    setCode(level.starterCode);
+    stopAll();
+    setCompleted(false);
+    setSongRevealed(false);
+    setHarmonyScore(0);
+    termRef.current?.clear();
+  };
+
   const playLayerWithSync = (ref, volume, synced, layerKey) => {
     if (!ref.current) return;
     ref.current.volume = Math.max(0, Math.min(1, volume));
@@ -102,7 +112,39 @@ function Level({ level, setScreen, unlockLevel }) {
     ref.current.play().catch(() => {});
   };
 
-  const applyMusicLayers = (analysis) => {
+  // ── ML-powered music layer application ──
+  const applyMusicLayers = (layers, harmony_score) => {
+    const { drums, chords, bass } = layers;
+
+    if (drums.weight > 0) {
+      playLayerWithSync(drumsRef, drums.weight * 0.85, drums.synced, "drums");
+    } else {
+      if (drumsRef.current) { drumsRef.current.pause(); drumsRef.current.currentTime = 0; }
+    }
+
+    if (chords.weight > 0) {
+      playLayerWithSync(chordsRef, chords.weight * 0.75, chords.synced, "chords");
+    } else {
+      if (chordsRef.current) { chordsRef.current.pause(); chordsRef.current.currentTime = 0; }
+    }
+
+    if (bass.weight > 0) {
+      playLayerWithSync(bassRef, bass.weight * 0.70, bass.synced, "bass");
+    } else {
+      if (bassRef.current) { bassRef.current.pause(); bassRef.current.currentTime = 0; }
+    }
+
+    setLayerStates({
+      drums:  { active: drums.weight  > 0, synced: drums.synced,  volume: drums.weight  },
+      chords: { active: chords.weight > 0, synced: chords.synced, volume: chords.weight },
+      bass:   { active: bass.weight   > 0, synced: bass.synced,   volume: bass.weight   },
+    });
+
+    setHarmonyScore(Math.round(harmony_score));
+  };
+
+  // ── Mock fallback ──
+  const applyMusicLayersMock = (analysis) => {
     const { loops, conditions, function_presence, syntax_error, correct_output } = analysis;
 
     const drumWeight  = syntax_error ? 0 : Math.min(loops, 1);
@@ -113,65 +155,77 @@ function Level({ level, setScreen, unlockLevel }) {
     const chordSynced = chordWeight > 0 && correct_output;
     const bassSynced  = bassWeight  > 0 && correct_output;
 
-    if (drumWeight > 0) {
-      playLayerWithSync(drumsRef,  drumWeight * 0.85,  drumSynced,  "drums");
-    } else {
-      if (drumsRef.current) { drumsRef.current.pause(); drumsRef.current.currentTime = 0; }
-    }
-
-    if (chordWeight > 0) {
-      playLayerWithSync(chordsRef, chordWeight * 0.75, chordSynced, "chords");
-    } else {
-      if (chordsRef.current) { chordsRef.current.pause(); chordsRef.current.currentTime = 0; }
-    }
-
-    if (bassWeight > 0) {
-      playLayerWithSync(bassRef,   bassWeight * 0.70,  bassSynced,  "bass");
-    } else {
-      if (bassRef.current) { bassRef.current.pause(); bassRef.current.currentTime = 0; }
-    }
+    const layers = {
+      drums:  { weight: drumWeight,  synced: drumSynced  },
+      chords: { weight: chordWeight, synced: chordSynced },
+      bass:   { weight: bassWeight,  synced: bassSynced  },
+    };
 
     let score = 0;
-    if (drumWeight  > 0) score += drumSynced  ? 35 : Math.round(drumWeight  * 20);
-    if (chordWeight > 0) score += chordSynced ? 30 : Math.round(chordWeight * 15);
-    if (bassWeight  > 0) score += bassSynced  ? 25 : Math.round(bassWeight  * 12);
+    if (drumWeight  > 0) score += drumSynced  ? 35 : 20;
+    if (chordWeight > 0) score += chordSynced ? 30 : 15;
+    if (bassWeight  > 0) score += bassSynced  ? 25 : 12;
     if (correct_output && !syntax_error) score += 10;
 
-    const finalScore = Math.min(100, score);
-
-    setLayerStates({
-      drums:  { active: drumWeight  > 0, synced: drumSynced,  volume: drumWeight  },
-      chords: { active: chordWeight > 0, synced: chordSynced, volume: chordWeight },
-      bass:   { active: bassWeight  > 0, synced: bassSynced,  volume: bassWeight  },
-    });
-    setHarmonyScore(finalScore);
-    return finalScore;
+    applyMusicLayers(layers, Math.min(100, score));
+    return Math.min(100, score);
   };
 
   const runCode = async () => {
     stopAll();
     setLoading(true);
+    setCompleted(false);
+    setSongRevealed(false);
     termRef.current?.writeLoading();
 
     await new Promise((r) => setTimeout(r, 600));
 
     try {
-      let result;
+      let correctOutput = false;
+      let syntaxError   = false;
+      let finalScore    = 0;
 
       if (USE_MOCK) {
-        result = mockRunCode(code, level.expectedOutput);
+        const result = mockRunCode(code, level.expectedOutput);
+        syntaxError   = result.analysis.syntax_error;
+        correctOutput = result.analysis.correct_output && !syntaxError;
+        finalScore    = applyMusicLayersMock(result.analysis);
+
+        termRef.current?.writeOutput(
+          result.output,
+          syntaxError ? "error" : correctOutput ? "success" : "wrong"
+        );
+        if (!syntaxError && !correctOutput) {
+          termRef.current?.writeHint(`Expected output:\n${level.expectedOutput}`);
+        }
+
       } else {
-        const res = await axios.post("http://127.0.0.1:8000/run-code", {
+        const res = await axios.post("http://127.0.0.1:8000/analyze-code", {
           code,
-          expected_output: level.expectedOutput,
+          expected_output:     level.expectedOutput,
+          loops_required:      level.requiredFeatures.includes("loops")      ? 1 : 0,
+          conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
+          functions_required:  level.requiredFeatures.includes("functions")  ? 1 : 0,
         });
-        result = res.data;
+
+        const data  = res.data;
+        syntaxError   = data.analysis.syntax_error;
+        correctOutput = data.analysis.correct_output && !syntaxError;
+        finalScore    = data.harmony_score;
+
+        applyMusicLayers(data.layers, data.harmony_score);
+
+        termRef.current?.writeOutput(
+          data.output,
+          syntaxError ? "error" : correctOutput ? "success" : "wrong"
+        );
+        if (!syntaxError && !correctOutput) {
+          termRef.current?.writeHint(`Expected output:\n${level.expectedOutput}`);
+        }
       }
 
-      termRef.current?.writeOutput(result.output);
-      const score = applyMusicLayers(result.analysis);
-
-      if (result.analysis.correct_output && !result.analysis.syntax_error && score >= 40) {
+      // ── Only reveal song if harmony is exactly 100 ──
+      if (correctOutput && Math.round(finalScore) === 100) {
         setTimeout(() => {
           setCompleted(true);
           unlockLevel(level.id + 1);
@@ -179,7 +233,7 @@ function Level({ level, setScreen, unlockLevel }) {
       }
 
     } catch (err) {
-      termRef.current?.writeOutput("ERROR: Something went wrong.\nCheck the console for details.");
+      termRef.current?.writeOutput("ERROR: Something went wrong.\nCheck the console for details.", "error");
       console.error(err);
     } finally {
       setLoading(false);
@@ -261,13 +315,12 @@ function Level({ level, setScreen, unlockLevel }) {
             <button
               className="btn"
               style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
-              onClick={() => { setCode(level.starterCode); stopAll(); termRef.current?.clear(); }}
+              onClick={resetLevel}
             >
               RESET
             </button>
           </div>
 
-          {/* XTERM TERMINAL — replaces old <pre> terminal */}
           <div className="terminal-wrapper corner-accent">
             <div className="terminal-label">[ OUTPUT ]</div>
             <XTerminal ref={termRef} />
