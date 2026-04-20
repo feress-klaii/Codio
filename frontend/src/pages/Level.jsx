@@ -119,16 +119,18 @@ function Level({ level, setScreen }) {
   }, [level]);
 
   // ── Ctrl+Enter to run ──
+  const runCodeRef = useRef(null);
+  useEffect(() => { runCodeRef.current = runCode; });
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        runCode();
+        runCodeRef.current?.();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [code, language]);
+  }, []);
 
   // ── Play broken reference (chaotic, offset) ──
   const playBroken = () => {
@@ -443,7 +445,7 @@ function Level({ level, setScreen }) {
               </div>
             </div>
             <Editor
-              height="340px"
+              height="420px"
               language={currentLang.monacoLang}
               theme="vs-dark"
               value={code}
@@ -452,17 +454,27 @@ function Level({ level, setScreen }) {
                 fontSize: 14,
                 fontFamily: "'Share Tech Mono', monospace",
                 minimap: { enabled: false },
-                scrollBeyondLastLine: true,
+                scrollBeyondLastLine: false,
                 lineNumbers: "on",
+                lineHeight: 22,
+                letterSpacing: 0.5,
+                renderLineHighlight: "line",
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
+                smoothScrolling: true,
                 scrollbar: {
                   vertical: "visible",
                   horizontal: "visible",
                   useShadows: false,
-                  verticalScrollbarSize: 8,
-                  horizontalScrollbarSize: 8,
+                  verticalScrollbarSize: 6,
+                  horizontalScrollbarSize: 6,
                 },
                 overviewRulerLanes: 0,
                 wordWrap: "off",
+                padding: { top: 12, bottom: 12 },
+                roundedSelection: true,
+                bracketPairColorization: { enabled: true },
+                guides: { indentation: true },
               }}
             />
           </div>
