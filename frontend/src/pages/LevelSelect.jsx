@@ -2,17 +2,22 @@ import React, { useState } from "react";
 import { levels } from "../data/levels";
 import "./LevelSelect.css";
 
-function LevelSelect({ setScreen, goToLevel, unlockedLevels, unlockLevel }) {
+// Level 0 is always accessible.
+// All other levels require password every session — never saved.
+const ALWAYS_UNLOCKED = [0];
+
+function LevelSelect({ setScreen, goToLevel }) {
   const [passwordInputs, setPasswordInputs] = useState({});
-  const [errors, setErrors] = useState({});
-  const [justUnlocked, setJustUnlocked] = useState(null);
+  const [errors, setErrors]                 = useState({});
+  const [sessionUnlocked, setSessionUnlocked] = useState([...ALWAYS_UNLOCKED]);
+  const [justUnlocked, setJustUnlocked]     = useState(null);
 
   const handlePasswordSubmit = (level) => {
-    const input = (passwordInputs[level.id] || "").trim().toUpperCase();
+    const input    = (passwordInputs[level.id] || "").trim().toUpperCase();
     const expected = (level.password || "").trim().toUpperCase();
 
     if (input === expected) {
-      unlockLevel(level.id);
+      setSessionUnlocked((prev) => [...new Set([...prev, level.id])]);
       setJustUnlocked(level.id);
       setErrors((prev) => ({ ...prev, [level.id]: "" }));
       setTimeout(() => setJustUnlocked(null), 2000);
@@ -39,15 +44,15 @@ function LevelSelect({ setScreen, goToLevel, unlockedLevels, unlockLevel }) {
             <h2 className="ls-title">MISSION SELECT</h2>
           </div>
           <div className="ls-status">
-            <span>{unlockedLevels.length} / {levels.length} UNLOCKED</span>
+            <span>{sessionUnlocked.length} / {levels.length} UNLOCKED</span>
           </div>
         </div>
 
         {/* LEVELS LIST */}
         <div className="ls-levels">
           {levels.map((level) => {
-            const isUnlocked = unlockedLevels.includes(level.id);
-            const isNew = justUnlocked === level.id;
+            const isUnlocked = sessionUnlocked.includes(level.id);
+            const isNew      = justUnlocked === level.id;
 
             return (
               <div
@@ -78,9 +83,8 @@ function LevelSelect({ setScreen, goToLevel, unlockedLevels, unlockLevel }) {
                     <button
                       className="btn btn-green"
                       onClick={() => goToLevel(level)}
-                      disabled={level.id === 1 && level.challenge === "TBD"}
                     >
-                      {level.id === 1 && level.challenge === "TBD" ? "COMING SOON" : "ENTER →"}
+                      ENTER →
                     </button>
                   ) : (
                     <div className="lock-form">
@@ -123,7 +127,7 @@ function LevelSelect({ setScreen, goToLevel, unlockedLevels, unlockLevel }) {
           })}
         </div>
 
-        {/* FOOTER INFO */}
+        {/* FOOTER */}
         <div className="ls-footer">
           <span className="ls-footer-note">
             Complete a level to receive the song name — that name is the password for the next level.
