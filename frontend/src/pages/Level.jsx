@@ -118,19 +118,7 @@ function Level({ level, setScreen }) {
     };
   }, [level]);
 
-  // ── Ctrl+Enter to run ──
-  const runCodeRef = useRef(null);
-  useEffect(() => { runCodeRef.current = runCode; });
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        runCodeRef.current?.();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+
 
   // ── Play broken reference (chaotic, offset) ──
   const playBroken = () => {
@@ -363,6 +351,20 @@ function Level({ level, setScreen }) {
       setLoading(false);
     }
   };
+
+  // ── Ctrl+Enter to run ──
+  const runCodeRef = useRef(null);
+  useEffect(() => { runCodeRef.current = runCode; });
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runCodeRef.current?.();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const currentLang = LANGUAGES.find(l => l.key === language);
   const nextLevel   = levels.find(l => l.id === level.id + 1);
