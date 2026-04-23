@@ -92,19 +92,19 @@ function Level({ level, setScreen }) {
     layerKeys.forEach((key) => {
       const src = level.layers[key].src;
 
-      // Live layer
+      // Live layer — starts silent, activated by ML weights
       const live = new Audio(src);
       live.loop   = true;
       live.volume = 0;
       audioRefs.current[key] = live;
 
-      // Broken reference layer
+      // Broken layer — plays offset/low volume when user hits PLAY
       const broken = new Audio(src);
       broken.loop   = true;
       broken.volume = 0;
       brokenRefs.current[key] = broken;
 
-      // Perfect reference audio (full volume, in sync)
+      // Perfect reference — full volume, in sync
       const ref = new Audio(src);
       ref.loop   = true;
       ref.volume = 1;
@@ -233,21 +233,40 @@ function Level({ level, setScreen }) {
   // ── Mock fallback ──
   const applyMockLayers = (analysis) => {
     const { loops, conditions, function_presence, syntax_error, correct_output } = analysis;
-    const dw = syntax_error ? 0 : Math.min(loops, 1);
-    const cw = syntax_error ? 0 : Math.min(conditions, 1);
-    const bw = syntax_error ? 0 : (function_presence ? 1 : 0);
-    const mw = correct_output ? 1.0 : 0.0;
-    const layers = {
-      drums:  { weight: dw, synced: dw > 0 && correct_output },
-      chords: { weight: cw, synced: cw > 0 && correct_output },
-      bass:   { weight: bw, synced: bw > 0 && correct_output },
-      melody: { weight: mw, synced: correct_output },
-    };
-    let score = 0;
-    if (dw > 0) score += layers.drums.synced  ? 30 : 15;
-    if (cw > 0) score += layers.chords.synced ? 25 : 12;
-    if (bw > 0) score += layers.bass.synced   ? 25 : 12;
-    if (mw > 0) score += 20;
+    let layers, score = 0;
+
+    if (level.id === 0) {
+      // Level 0: drums=loops, chords=no syntax error, bass=correct output
+      const dw = Math.min(loops, 1);
+      const cw = syntax_error ? 0 : 1;
+      const bw = correct_output ? 1 : 0;
+      layers = {
+        drums:  { weight: dw, synced: dw > 0 && correct_output },
+        chords: { weight: cw, synced: cw > 0 && correct_output },
+        bass:   { weight: bw, synced: bw > 0 },
+        melody: { weight: 0,  synced: false },
+      };
+      if (dw > 0) score += layers.drums.synced  ? 35 : 20;
+      if (cw > 0) score += layers.chords.synced ? 35 : 20;
+      if (bw > 0) score += 30;
+    } else {
+      // Level 1+: drums=loops, chords=conditions, bass=functions
+      const dw = syntax_error ? 0 : Math.min(loops, 1);
+      const cw = syntax_error ? 0 : Math.min(conditions, 1);
+      const bw = syntax_error ? 0 : (function_presence ? 1 : 0);
+      const mw = correct_output ? 1.0 : 0.0;
+      layers = {
+        drums:  { weight: dw, synced: dw > 0 && correct_output },
+        chords: { weight: cw, synced: cw > 0 && correct_output },
+        bass:   { weight: bw, synced: bw > 0 && correct_output },
+        melody: { weight: mw, synced: correct_output },
+      };
+      if (dw > 0) score += layers.drums.synced  ? 25 : 12;
+      if (cw > 0) score += layers.chords.synced ? 25 : 12;
+      if (bw > 0) score += layers.bass.synced   ? 25 : 12;
+      if (mw > 0) score += 25;
+    }
+
     applyMusicLayers(layers, Math.min(100, score));
     return Math.min(100, score);
   };
@@ -317,6 +336,7 @@ function Level({ level, setScreen }) {
         const res = await axios.post("http://127.0.0.1:8000/analyze-code", {
           code,
           language,
+          level_id:            level.id,
           expected_output:     level.expectedOutput,
           loops_required:      level.requiredFeatures.includes("loops")      ? 1 : 0,
           conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
@@ -370,12 +390,19 @@ function Level({ level, setScreen }) {
   const nextLevel   = levels.find(l => l.id === level.id + 1);
   const layerKeys   = ["drums", "chords", "bass", "melody"].filter(k => level.layers[k] !== null);
 
-  const LAYER_DISPLAY = {
-    drums:  { label: "DRUMS",  desc: "Loops",     color: "var(--accent-cyan)"   },
-    chords: { label: "CHORDS", desc: "Conditions", color: "var(--accent-purple)" },
-    bass:   { label: "BASS",   desc: "Functions",  color: "var(--accent-pink)"   },
-    melody: { label: "MELODY", desc: "Correctness", color: "var(--accent-green)" },
-  };
+  const LAYER_DISPLAY = level.id === 0
+    ? {
+        drums:  { label: "DRUMS",  desc: "Rhythm",               color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Clarity",              color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Precision",            color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "Harmony",              color: "var(--accent-green)"  },
+      }
+    : {
+        drums:  { label: "DRUMS",  desc: "Loops detected",      color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Conditions detected",  color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Functions detected",   color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "Correctness",          color: "var(--accent-green)"  },
+      };
 
   return (
     <div className={`level-screen scanlines ${completionFlash ? "completion-flash" : ""}`}>
@@ -412,6 +439,17 @@ function Level({ level, setScreen }) {
           <div className="challenge-block corner-accent">
             <div className="challenge-label">[ MISSION BRIEF ]</div>
             <p className="challenge-text">{level.challenge}</p>
+            {level.examples && level.examples.length > 0 && (
+              <div className="examples-list">
+                {level.examples.map((ex, i) => (
+                  <div key={i} className="example-row">
+                    <span className="example-input">{ex.input}</span>
+                    <span className="example-arrow">→</span>
+                    <span className="example-output">{ex.output}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {level.hint && (
               <div className="challenge-hint-box">
                 <span className="hint-icon">◈</span>
@@ -447,7 +485,7 @@ function Level({ level, setScreen }) {
               </div>
             </div>
             <Editor
-              height="420px"
+              height={level.id === 0 ? "360px" : "380px"}
               language={currentLang.monacoLang}
               theme="vs-dark"
               value={code}
@@ -456,7 +494,7 @@ function Level({ level, setScreen }) {
                 fontSize: 14,
                 fontFamily: "'Share Tech Mono', monospace",
                 minimap: { enabled: false },
-                scrollBeyondLastLine: false,
+                scrollBeyondLastLine: true,
                 lineNumbers: "on",
                 lineHeight: 22,
                 letterSpacing: 0.5,

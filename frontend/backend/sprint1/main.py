@@ -40,6 +40,7 @@ class AnalyzeRequest(BaseModel):
     conditions_required: int = 0
     functions_required: int = 0
     test_runner: str = ""
+    level_id: int = 0
 
 
 LANGUAGE_CONFIG = {
@@ -123,11 +124,31 @@ def analyze_code_ml(request: AnalyzeRequest):
         chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
         bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
 
-    melody_weight = 1.0 if correct_output else 0.0
-    melody_synced = correct_output
-    drum_synced   = correct_output and ast_analysis["loops"] > 0
-    chord_synced  = correct_output and ast_analysis["conditions"] > 0
-    bass_synced   = correct_output and ast_analysis["function_presence"]
+    # Level 0: drums=loops, chords=no_syntax_error, bass=correct_output
+    # Level 1+: drums=loops, chords=conditions, bass=functions, melody=correct_output
+    if request.level_id == 0:
+        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
+        chord_weight  = 0.0 if ast_analysis["syntax_error"] else 1.0
+        bass_weight   = 1.0 if correct_output else 0.0
+        melody_weight = 0.0
+
+        drum_synced   = drum_weight  > 0 and correct_output
+        chord_synced  = chord_weight > 0 and correct_output
+        bass_synced   = correct_output
+        melody_synced = False
+
+        # Recalculate harmony for level 0
+        score = 0
+        if drum_weight  > 0: score += 35 if drum_synced  else 20
+        if chord_weight > 0: score += 35 if chord_synced else 20
+        if bass_weight  > 0: score += 30
+        harmony_score = float(min(100, score))
+    else:
+        melody_weight = 1.0 if correct_output else 0.0
+        melody_synced = correct_output
+        drum_synced   = correct_output and ast_analysis["loops"] > 0
+        chord_synced  = correct_output and ast_analysis["conditions"] > 0
+        bass_synced   = correct_output and ast_analysis["function_presence"]
 
     return {
         "output": output,

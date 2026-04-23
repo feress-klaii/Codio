@@ -5,6 +5,7 @@ export const levels = [
     locked: false,
     password: null,
     challenge: "Write a loop that prints numbers from 0 to 4.",
+    examples: [],
     description: "Your first mission. Make the machine count. Make it feel the rhythm.",
     type: "write",
     starterCode: "# Write your code here\n",
@@ -25,7 +26,12 @@ export const levels = [
     title: "Level 1 — Mirror Logic",
     locked: true,
     password: "THE BEGINNING",
-    challenge: `Complete the isPalindrome method.\n\nGiven an integer x, return True if x is a palindrome, False otherwise.\n\nExamples:\n  isPalindrome(121)  → True\n  isPalindrome(-121) → False\n  isPalindrome(10)   → False`,
+    challenge: "Given an integer x, return True if x is a palindrome, False otherwise.",
+    examples: [
+      { input: "isPalindrome(121)",  output: "True"  },
+      { input: "isPalindrome(-121)", output: "False" },
+      { input: "isPalindrome(10)",   output: "False" },
+    ],
     description: "The machine speaks in mirrors. Can you make it understand symmetry?",
     type: "fix",
     starterCode:
