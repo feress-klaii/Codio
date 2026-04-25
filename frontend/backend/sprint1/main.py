@@ -144,11 +144,28 @@ def analyze_code_ml(request: AnalyzeRequest):
         if bass_weight  > 0: score += 30
         harmony_score = float(min(100, score))
     else:
-        melody_weight = 1.0 if correct_output else 0.0
-        melody_synced = correct_output
-        drum_synced   = correct_output and ast_analysis["loops"] > 0
+        # Level 1 mapping (Option B):
+        # drums  = correct output
+        # chords = conditions (if statements)
+        # bass   = function presence
+        # melody = no syntax error
+        drum_weight   = 1.0 if correct_output else 0.0
+        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
+        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
+        melody_weight = 0.0 if ast_analysis["syntax_error"] else 1.0
+
+        drum_synced   = correct_output
         chord_synced  = correct_output and ast_analysis["conditions"] > 0
         bass_synced   = correct_output and ast_analysis["function_presence"]
+        melody_synced = correct_output and not ast_analysis["syntax_error"]
+
+        # Recalculate harmony for level 1
+        score = 0
+        if drum_weight   > 0: score += 30 if drum_synced   else 15
+        if chord_weight  > 0: score += 25 if chord_synced  else 12
+        if bass_weight   > 0: score += 25 if bass_synced   else 12
+        if melody_weight > 0: score += 20 if melody_synced else 10
+        harmony_score = float(min(100, score))
 
     return {
         "output": output,
@@ -197,7 +214,7 @@ def analyze_python(code):
 def analyze_js_basic(code):
     loops      = len(re.findall(r'\b(for|while)\b', code))
     conditions = len(re.findall(r'\bif\b', code))
-    functions  = bool(re.search(r'\b(function\s+\w+|const\s+\w+\s*=\s*(\(.*?\)|[\w]+)\s*=>)', code))
+    functions  = bool(re.search(r'\b(function\s+\w+|\w+\s*=\s*function|const\s+\w+\s*=\s*(\(.*?\)|[\w]+)\s*=>)', code))
     lines      = code.split("\n")
     max_depth  = max(((len(l) - len(l.lstrip())) // 2) for l in lines if l.strip()) if lines else 0
     return {"loops": loops, "conditions": conditions, "function_presence": functions,

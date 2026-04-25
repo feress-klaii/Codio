@@ -52,6 +52,10 @@ console.log(isPalindrome(10));
 };
 
 const getStarterCode = (levelId, lang) => {
+  if (lang === "javascript") {
+    const lvl = levels.find(l => l.id === levelId);
+    return lvl?.starterCodeJS || "// Write your code here\n";
+  }
   return (STARTER_CODE[levelId] && STARTER_CODE[levelId][lang])
     ? STARTER_CODE[levelId][lang]
     : "# Write your code here\n";
@@ -250,21 +254,21 @@ function Level({ level, setScreen }) {
       if (cw > 0) score += layers.chords.synced ? 35 : 20;
       if (bw > 0) score += 30;
     } else {
-      // Level 1+: drums=loops, chords=conditions, bass=functions
-      const dw = syntax_error ? 0 : Math.min(loops, 1);
-      const cw = syntax_error ? 0 : Math.min(conditions, 1);
-      const bw = syntax_error ? 0 : (function_presence ? 1 : 0);
-      const mw = correct_output ? 1.0 : 0.0;
+      // Level 1: drums=correct_output, chords=conditions, bass=functions, melody=no syntax error
+      const dw = correct_output ? 1 : 0;
+      const cw = Math.min(conditions, 1);
+      const bw = function_presence ? 1 : 0;
+      const mw = syntax_error ? 0 : 1;
       layers = {
-        drums:  { weight: dw, synced: dw > 0 && correct_output },
+        drums:  { weight: dw, synced: correct_output },
         chords: { weight: cw, synced: cw > 0 && correct_output },
         bass:   { weight: bw, synced: bw > 0 && correct_output },
-        melody: { weight: mw, synced: correct_output },
+        melody: { weight: mw, synced: mw > 0 && correct_output },
       };
-      if (dw > 0) score += layers.drums.synced  ? 25 : 12;
+      if (dw > 0) score += layers.drums.synced  ? 30 : 15;
       if (cw > 0) score += layers.chords.synced ? 25 : 12;
       if (bw > 0) score += layers.bass.synced   ? 25 : 12;
-      if (mw > 0) score += 25;
+      if (mw > 0) score += layers.melody.synced ? 20 : 10;
     }
 
     applyMusicLayers(layers, Math.min(100, score));
@@ -299,12 +303,8 @@ function Level({ level, setScreen }) {
   };
 
   // ── Build test runner for class-based levels ──
-  const getTestRunner = () => {
-    if (level.id === 1) {
-      return `sol = Solution()\nprint(sol.isPalindrome(121))\nprint(sol.isPalindrome(-121))\nprint(sol.isPalindrome(10))`;
-    }
-    return "";
-  };
+  // Test runner is already embedded in starterCode for class-based levels
+  const getTestRunner = () => "";
 
   // ── Run code ──
   const runCode = async () => {
@@ -337,7 +337,7 @@ function Level({ level, setScreen }) {
           code,
           language,
           level_id:            level.id,
-          expected_output:     level.expectedOutput,
+          expected_output:     language === "javascript" ? (level.expectedOutputJS || level.expectedOutput) : level.expectedOutput,
           loops_required:      level.requiredFeatures.includes("loops")      ? 1 : 0,
           conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
           functions_required:  level.requiredFeatures.includes("functions")  ? 1 : 0,
@@ -398,10 +398,10 @@ function Level({ level, setScreen }) {
         melody: { label: "MELODY", desc: "Harmony",              color: "var(--accent-green)"  },
       }
     : {
-        drums:  { label: "DRUMS",  desc: "Loops detected",      color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Conditions detected",  color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Functions detected",   color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "Correctness",          color: "var(--accent-green)"  },
+        drums:  { label: "DRUMS",  desc: "Precision",            color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Logic",                color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Structure",            color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "Clarity",              color: "var(--accent-green)"  },
       };
 
   return (
@@ -452,9 +452,9 @@ function Level({ level, setScreen }) {
             )}
             {level.hint && (
               <div className="challenge-hint-box">
-                <span className="hint-icon">◈</span>
+                {/*<span className="hint-icon">◈</span>*/}
                 <p className="challenge-hint">
-                  <span className="hint-label">Hint: </span>{level.hint}
+                  <span className="hint-label">◈ Hint: </span>{level.hint}
                 </p>
               </div>
             )}

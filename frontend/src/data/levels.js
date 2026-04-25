@@ -9,16 +9,17 @@ export const levels = [
     description: "Your first mission. Make the machine count. Make it feel the rhythm.",
     type: "write",
     starterCode: "# Write your code here\n",
-    expectedOutput: "0\n1\n2\n3\n4",
+    starterCodeJS: "// Write your code here\n",
+    expectedOutput:   "0\n1\n2\n3\n4",
+    expectedOutputJS: "0\n1\n2\n3\n4",
     songName: "THE BEGINNING",
     requiredFeatures: ["loops"],
     hint: "Try using a for loop with range().",
-    // Audio layers for this level
     layers: {
-      drums:  { src: "/audio/drums.wav",  broken: true  },
-      chords: { src: "/audio/chords.mp3", broken: true  },
-      bass:   { src: "/audio/bass.wav",   broken: true  },
-      melody: null, // no melody layer for level 0
+      drums:  { src: "/audio/drum0s.mp3",  broken: true },
+      chords: { src: "/audio/chords0.mp3", broken: true },
+      bass:   { src: "/audio/bass0.mp3",   broken: true },
+      melody: null,
     },
   },
   {
@@ -47,16 +48,31 @@ print(sol.isPalindrome(121))
 print(sol.isPalindrome(-121))
 print(sol.isPalindrome(10))
 `,
-    expectedOutput: "True\nFalse\nFalse",
-    songName: "CYBERPATH",
+    starterCodeJS:
+`/**
+ * @param {number} x
+ * @return {boolean}
+ */
+var isPalindrome = function(x) {
+    // Complete this function
+    // Return true if x is a palindrome, false otherwise
+};
+
+// Test runner — do not modify
+console.log(isPalindrome(121));
+console.log(isPalindrome(-121));
+console.log(isPalindrome(10));
+`,
+    expectedOutput:   "True\nFalse\nFalse",
+    expectedOutputJS: "true\nfalse\nfalse",
+    songName: "16 PUNKS",
     requiredFeatures: ["functions", "conditions"],
     hint: "Convert x to a string and compare it to its reverse. Negative numbers are never palindromes.",
-    // Audio layers for this level — fill in src paths once you have the files
     layers: {
-      drums:  { src: "/audio/l1_drums.wav",  broken: true  },
-      chords: { src: "/audio/l1_chords.wav", broken: true  },
-      bass:   { src: "/audio/l1_bass.wav",   broken: true  },
-      melody: { src: "/audio/l1_melody.wav", broken: true  },
+      drums:  { src: "/audio/drums11.mp3",  broken: true },
+      chords: { src: "/audio/chords11.mp3", broken: true },
+      bass:   { src: "/audio/bass11.mp3",   broken: true },
+      melody: { src: "/audio/melody11.mp3", broken: true },
     },
   },
 ];
