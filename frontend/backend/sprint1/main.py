@@ -5,119 +5,217 @@ import subprocess
 import tempfile
 import os
 import ast
+import re
+import numpy as np
+import joblib
 
 app = FastAPI()
 
-# Allow React dev server to call the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+MODEL_PATH = "harmony_model.pkl"
+try:
+    harmony_model = joblib.load(MODEL_PATH)
+    print(f"✅ Harmony model loaded from {MODEL_PATH}")
+except FileNotFoundError:
+    harmony_model = None
+    print(f"⚠ No model found at {MODEL_PATH}. Run train_model.py first.")
+
 
 class CodeRequest(BaseModel):
     code: str
-    expected_output: str = ""  # added — frontend sends this
+    language: str = "python"
+    expected_output: str = ""
+
+class AnalyzeRequest(BaseModel):
+    code: str
+    language: str = "python"
+    expected_output: str = ""
+    loops_required: int = 0
+    conditions_required: int = 0
+    functions_required: int = 0
+    test_runner: str = ""
+    level_id: int = 0
+
+
+LANGUAGE_CONFIG = {
+    "python":     {"runner": "python", "suffix": ".py",  "use_ast": True},
+    "javascript": {"runner": "node",   "suffix": ".js",  "use_ast": False},
+}
 
 
 @app.post("/run-code")
 def run_code(request: CodeRequest):
-    code = request.code
-
-    # Check for syntax errors before running
-    analysis = analyze_code(code)
-
-    if analysis["syntax_error"]:
-        try:
-            ast.parse(code)
-        except SyntaxError as e:
-            error_msg = f"SyntaxError: {e.msg} (line {e.lineno})"
-        else:
-            error_msg = "SyntaxError: invalid syntax"
-        return {
-            "output": error_msg,
-            "analysis": analysis
-        }
-
+    lang   = request.language.lower()
+    config = LANGUAGE_CONFIG.get(lang, LANGUAGE_CONFIG["python"])
+    code   = request.code
+    analysis = analyze_python(code) if config["use_ast"] else analyze_js_basic(code)
+    if config["use_ast"] and analysis["syntax_error"]:
+        return {"output": "SyntaxError: invalid syntax", "analysis": analysis}
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w") as f:
-            f.write(code)
-            file_name = f.name
-
-        result = subprocess.run(
-            ["python", file_name],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-
-        os.unlink(file_name)  # clean up temp file
-
-        output = result.stdout if result.returncode == 0 else result.stderr or result.stdout
-
-        # Compare output to expected (strip trailing whitespace on both sides)
-        correct_output = output.strip() == request.expected_output.strip()
-        analysis["correct_output"] = correct_output
-
-        return {
-            "output": output,
-            "analysis": analysis
-        }
-
+        output = execute_code(code, config)
+        analysis["correct_output"] = output.strip() == request.expected_output.strip()
+        return {"output": output, "analysis": analysis}
     except subprocess.TimeoutExpired:
-        return {
-            "output": "Error: code execution timed out (5s limit)",
-            "analysis": {**analysis, "correct_output": False}
-        }
+        return {"output": "Error: timed out (5s)", "analysis": {**analysis, "correct_output": False}}
     except Exception as e:
+        return {"output": str(e), "analysis": {**analysis, "correct_output": False}}
+
+
+@app.post("/analyze-code")
+def analyze_code_ml(request: AnalyzeRequest):
+    lang      = request.language.lower()
+    config    = LANGUAGE_CONFIG.get(lang, LANGUAGE_CONFIG["python"])
+    code      = request.code
+    full_code = code + "\n\n" + request.test_runner if request.test_runner.strip() else code
+
+    ast_analysis = analyze_python(code) if config["use_ast"] else analyze_js_basic(code)
+
+    if config["use_ast"] and ast_analysis["syntax_error"]:
         return {
-            "output": str(e),
-            "analysis": {**analysis, "correct_output": False}
+            "output": "SyntaxError: invalid syntax",
+            "harmony_score": 0,
+            "layers": {
+                "drums":  {"weight": 0.0, "synced": False},
+                "chords": {"weight": 0.0, "synced": False},
+                "bass":   {"weight": 0.0, "synced": False},
+                "melody": {"weight": 0.0, "synced": False},
+            },
+            "analysis": ast_analysis
         }
 
+    output = ""
+    correct_output = False
+    try:
+        output = execute_code(full_code, config)
+        correct_output = output.strip() == request.expected_output.strip()
+    except subprocess.TimeoutExpired:
+        output = "Error: timed out (5s)"
+    except Exception as e:
+        output = str(e)
 
-def analyze_code(code: str):
+    ast_analysis["correct_output"] = correct_output
+
+    features = np.array([[
+        ast_analysis["loops"],
+        ast_analysis["conditions"],
+        1 if ast_analysis["function_presence"] else 0,
+        1 if correct_output else 0,
+        ast_analysis["nested_depth"],
+        request.loops_required,
+        request.conditions_required,
+        request.functions_required,
+    ]])
+
+    if harmony_model is not None:
+        prediction    = harmony_model.predict(features)[0]
+        harmony_score = float(np.clip(round(prediction[0]), 0, 100))
+        drum_weight   = float(np.clip(prediction[1], 0.0, 1.0))
+        chord_weight  = float(np.clip(prediction[2], 0.0, 1.0))
+        bass_weight   = float(np.clip(prediction[3], 0.0, 1.0))
+    else:
+        harmony_score = 100.0 if correct_output else 30.0
+        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
+        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
+        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
+
+    # Level 0: drums=loops, chords=no_syntax_error, bass=correct_output
+    # Level 1+: drums=loops, chords=conditions, bass=functions, melody=correct_output
+    if request.level_id == 0:
+        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
+        chord_weight  = 0.0 if ast_analysis["syntax_error"] else 1.0
+        bass_weight   = 1.0 if correct_output else 0.0
+        melody_weight = 0.0
+
+        drum_synced   = drum_weight  > 0 and correct_output
+        chord_synced  = chord_weight > 0 and correct_output
+        bass_synced   = correct_output
+        melody_synced = False
+
+        # Recalculate harmony for level 0
+        score = 0
+        if drum_weight  > 0: score += 35 if drum_synced  else 20
+        if chord_weight > 0: score += 35 if chord_synced else 20
+        if bass_weight  > 0: score += 30
+        harmony_score = float(min(100, score))
+    else:
+        # Level 1 mapping (Option B):
+        # drums  = correct output
+        # chords = conditions (if statements)
+        # bass   = function presence
+        # melody = no syntax error
+        drum_weight   = 1.0 if correct_output else 0.0
+        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
+        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
+        melody_weight = 0.0 if ast_analysis["syntax_error"] else 1.0
+
+        drum_synced   = correct_output
+        chord_synced  = correct_output and ast_analysis["conditions"] > 0
+        bass_synced   = correct_output and ast_analysis["function_presence"]
+        melody_synced = correct_output and not ast_analysis["syntax_error"]
+
+        # Recalculate harmony for level 1
+        score = 0
+        if drum_weight   > 0: score += 30 if drum_synced   else 15
+        if chord_weight  > 0: score += 25 if chord_synced  else 12
+        if bass_weight   > 0: score += 25 if bass_synced   else 12
+        if melody_weight > 0: score += 20 if melody_synced else 10
+        harmony_score = float(min(100, score))
+
+    return {
+        "output": output,
+        "harmony_score": harmony_score,
+        "layers": {
+            "drums":  {"weight": drum_weight,   "synced": drum_synced  },
+            "chords": {"weight": chord_weight,  "synced": chord_synced },
+            "bass":   {"weight": bass_weight,   "synced": bass_synced  },
+            "melody": {"weight": melody_weight, "synced": melody_synced},
+        },
+        "analysis": ast_analysis
+    }
+
+
+def execute_code(code, config):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=config["suffix"], mode="w", encoding="utf-8") as f:
+        f.write(code)
+        fname = f.name
+    try:
+        r = subprocess.run([config["runner"], fname], capture_output=True, text=True, timeout=5)
+        return r.stdout if r.returncode == 0 else r.stderr
+    finally:
+        if os.path.exists(fname): os.unlink(fname)
+
+
+def analyze_python(code):
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return {
-            "loops": 0,
-            "conditions": 0,
-            "function_presence": False,  # renamed + boolean
-            "syntax_error": True,
-            "correct_output": False
-        }
-
-    loops = 0
-    conditions = 0
-    functions = 0
-
-    def visit(node):
+        return {"loops": 0, "conditions": 0, "function_presence": False,
+                "nested_depth": 0, "syntax_error": True, "correct_output": False}
+    loops = conditions = functions = 0
+    max_depth = [0]
+    def visit(node, depth=0):
         nonlocal loops, conditions, functions
-
-        if isinstance(node, (ast.For, ast.While)):
-            loops += 1
-        elif isinstance(node, ast.If):
-            conditions += 1
-        elif isinstance(node, ast.FunctionDef):
-            functions += 1
-
-        for child in ast.iter_child_nodes(node):
-            visit(child)
-
+        max_depth[0] = max(max_depth[0], depth)
+        if isinstance(node, (ast.For, ast.While)): loops += 1
+        elif isinstance(node, ast.If): conditions += 1
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)): functions += 1
+        for child in ast.iter_child_nodes(node): visit(child, depth + 1)
     visit(tree)
+    return {"loops": loops, "conditions": conditions, "function_presence": functions > 0,
+            "nested_depth": max_depth[0], "syntax_error": False, "correct_output": False}
 
-    return {
-        "loops": loops,
-        "conditions": conditions,
-        "function_presence": functions > 0,  # boolean, matches frontend
-        "syntax_error": False,
-        # correct_output added after execution
-    }
+
+def analyze_js_basic(code):
+    loops      = len(re.findall(r'\b(for|while)\b', code))
+    conditions = len(re.findall(r'\bif\b', code))
+    functions  = bool(re.search(r'\b(function\s+\w+|\w+\s*=\s*function|const\s+\w+\s*=\s*(\(.*?\)|[\w]+)\s*=>)', code))
+    lines      = code.split("\n")
+    max_depth  = max(((len(l) - len(l.lstrip())) // 2) for l in lines if l.strip()) if lines else 0
+    return {"loops": loops, "conditions": conditions, "function_presence": functions,
+            "nested_depth": max_depth, "syntax_error": False, "correct_output": False}
