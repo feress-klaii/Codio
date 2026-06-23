@@ -16,7 +16,7 @@ export const levels = [
     requiredFeatures: ["loops"],
     hint: "Try using a for loop with range().",
     layers: {
-      drums:  { src: "/audio/drum0s.mp3",  broken: true },
+      drums:  { src: "/audio/drums0.mp3",  broken: true },
       chords: { src: "/audio/chords0.mp3", broken: true },
       bass:   { src: "/audio/bass0.mp3",   broken: true },
       melody: null,
