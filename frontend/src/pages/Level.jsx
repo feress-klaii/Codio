@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import axios from "axios";
 import { levels } from "../data/levels";
@@ -6,7 +6,18 @@ import { mockRunCode } from "../utils/Mockrunner";
 import XTerminal from "../components/XTerminal";
 import "./Level.css";
 
+// 🔧 SET TO true TO USE MOCK (no backend), false TO USE REAL BACKEND
 const USE_MOCK = false;
+
+const LAYER_DELAYS = {
+  drums:  0.6,
+  chords: 0.9,
+  bass:   0.4,
+  melody: 1.2,
+};
+
+const BROKEN_OFFSETS = { drums: 0.8, chords: 1.4, bass: 0.6, melody: 1.9 };
+const BROKEN_VOLUMES = { drums: 0.3, chords: 0.25, bass: 0.2, melody: 0.15 };
 
 const LANGUAGES = [
   { key: "python",     label: "Python",     monacoLang: "python"     },
@@ -34,11 +45,7 @@ print(sol.isPalindrome(-121))
 print(sol.isPalindrome(10))
 `,
     javascript:
-`/**
- * @param {number} x
- * @return {boolean}
- */
-var isPalindrome = function(x) {
+`var isPalindrome = function(x) {
     // Complete this function
     // Return true if x is a palindrome, false otherwise
 };
@@ -49,21 +56,39 @@ console.log(isPalindrome(-121));
 console.log(isPalindrome(10));
 `,
   },
+  2: {
+    python:
+`def sumEven(nums):
+    # Complete this function
+    # Return the sum of all even numbers in nums
+    pass
+
+# Public test runner — do not modify
+print(sumEven([1, 2, 3, 4]))
+print(sumEven([1, 3, 5]))
+print(sumEven([2, 4, 6, 8]))
+`,
+    javascript:
+`var sumEven = function(nums) {
+    // Complete this function
+    // Return the sum of all even numbers in nums
+};
+
+// Public test runner — do not modify
+console.log(sumEven([1, 2, 3, 4]));
+console.log(sumEven([1, 3, 5]));
+console.log(sumEven([2, 4, 6, 8]));
+`,
+  },
 };
 
 const getStarterCode = (levelId, lang) => {
   if (lang === "javascript") {
     const lvl = levels.find(l => l.id === levelId);
-    return lvl?.starterCodeJS || "// Write your code here\n";
+    return lvl?.starterCodeJS || STARTER_CODE[levelId]?.javascript || "// Write your code here\n";
   }
-  return (STARTER_CODE[levelId] && STARTER_CODE[levelId][lang])
-    ? STARTER_CODE[levelId][lang]
-    : "# Write your code here\n";
+  return STARTER_CODE[levelId]?.python || levels.find(l => l.id === levelId)?.starterCode || "# Write your code here\n";
 };
-
-// Broken state: layers play offset + low volume to sound chaotic
-const BROKEN_OFFSETS = { drums: 0.8, chords: 1.4, bass: 0.6, melody: 1.9 };
-const BROKEN_VOLUMES = { drums: 0.3, chords: 0.25, bass: 0.2, melody: 0.15 };
 
 function Level({ level, setScreen }) {
   const [code, setCode]                   = useState(() => getStarterCode(level.id, "python"));
@@ -77,7 +102,6 @@ function Level({ level, setScreen }) {
   const [harmonyScore, setHarmonyScore]   = useState(0);
   const [brokenPlaying, setBrokenPlaying] = useState(false);
   const [refPlaying, setRefPlaying]       = useState(false);
-  const refAudioRefs = useRef({});
   const [layerStates, setLayerStates]     = useState({
     drums:  { active: false, synced: false, volume: 0 },
     chords: { active: false, synced: false, volume: 0 },
@@ -85,46 +109,93 @@ function Level({ level, setScreen }) {
     melody: { active: false, synced: false, volume: 0 },
   });
 
-  const termRef = useRef(null);
-  const audioRefs = useRef({});     // live layers
-  const brokenRefs = useRef({});    // broken reference layers
+  const termRef    = useRef(null);
+  const editorRef  = useRef(null);
+  const errorDecos = useRef([]);
+  const audioRefs  = useRef({});
+  const brokenRefs = useRef({});
+  const refAudioRefs = useRef({});
 
   // ── Initialize audio ──
   useEffect(() => {
     const layerKeys = Object.keys(level.layers).filter(k => level.layers[k] !== null);
-
     layerKeys.forEach((key) => {
       const src = level.layers[key].src;
-
-      // Live layer — starts silent, activated by ML weights
       const live = new Audio(src);
-      live.loop   = true;
-      live.volume = 0;
+      live.loop = true; live.volume = 0;
       audioRefs.current[key] = live;
 
-      // Broken layer — plays offset/low volume when user hits PLAY
       const broken = new Audio(src);
-      broken.loop   = true;
-      broken.volume = 0;
+      broken.loop = true; broken.volume = 0;
       brokenRefs.current[key] = broken;
 
-      // Perfect reference — full volume, in sync
       const ref = new Audio(src);
-      ref.loop   = true;
-      ref.volume = 1;
+      ref.loop = true; ref.volume = 1;
       refAudioRefs.current[key] = ref;
     });
-
     return () => {
-      Object.values(audioRefs.current).forEach(a => { a.pause(); a.src = ""; });
-      Object.values(brokenRefs.current).forEach(a => { a.pause(); a.src = ""; });
-      Object.values(refAudioRefs.current).forEach(a => { a.pause(); a.src = ""; });
+      [audioRefs, brokenRefs, refAudioRefs].forEach(group => {
+        Object.values(group.current).forEach(a => { a.pause(); a.src = ""; });
+      });
     };
   }, [level]);
 
+  // ── Ctrl+Enter ──
+  const runCodeRef = useRef(null);
+  useEffect(() => { runCodeRef.current = runCode; });
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runCodeRef.current?.();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
+  // ── Error line highlighting ──
+  const highlightErrorLine = (lineNumber) => {
+    if (!editorRef.current || !lineNumber) return;
+    // Clear old decorations
+    errorDecos.current = editorRef.current.deltaDecorations(errorDecos.current, [
+      {
+        range: { startLineNumber: lineNumber, startColumn: 1, endLineNumber: lineNumber, endColumn: 1 },
+        options: {
+          isWholeLine: true,
+          className: "error-line-highlight",
+          glyphMarginClassName: "error-line-glyph",
+        },
+      },
+    ]);
+  };
 
-  // ── Play broken reference (chaotic, offset) ──
+  const clearErrorHighlight = () => {
+    if (!editorRef.current) return;
+    errorDecos.current = editorRef.current.deltaDecorations(errorDecos.current, []);
+  };
+
+  // ── Language switch ──
+  const switchLanguage = (lang) => {
+    setLanguage(lang);
+    setCode(getStarterCode(level.id, lang));
+    setLangOpen(false);
+    stopAll();
+    clearErrorHighlight();
+    termRef.current?.clear();
+  };
+
+  // ── Reference track ──
+  const playRef = () => {
+    Object.values(refAudioRefs.current).forEach(a => { a.currentTime = 0; a.play().catch(() => {}); });
+    setRefPlaying(true);
+  };
+  const stopRef = () => {
+    Object.values(refAudioRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
+    setRefPlaying(false);
+  };
+
+  // ── Broken track ──
   const playBroken = () => {
     Object.entries(brokenRefs.current).forEach(([key, audio]) => {
       audio.volume      = BROKEN_VOLUMES[key] || 0.2;
@@ -133,27 +204,12 @@ function Level({ level, setScreen }) {
     });
     setBrokenPlaying(true);
   };
-
   const stopBroken = () => {
     Object.values(brokenRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
     setBrokenPlaying(false);
   };
 
-  // ── Play perfect reference ──
-  const playRef = () => {
-    Object.values(refAudioRefs.current).forEach(a => {
-      a.currentTime = 0;
-      a.play().catch(() => {});
-    });
-    setRefPlaying(true);
-  };
-
-  const stopRef = () => {
-    Object.values(refAudioRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
-    setRefPlaying(false);
-  };
-
-  // ── Stop all live layers ──
+  // ── Stop all ──
   const stopAll = () => {
     Object.values(audioRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
     stopBroken();
@@ -176,25 +232,18 @@ function Level({ level, setScreen }) {
     setSongRevealed(false);
     setRevealedText("");
     setHarmonyScore(0);
+    clearErrorHighlight();
     termRef.current?.clear();
   };
 
-  const switchLanguage = (lang) => {
-    setLanguage(lang);
-    setCode(getStarterCode(level.id, lang));
-    setLangOpen(false);
-    stopAll();
-    termRef.current?.clear();
-  };
-
-  // ── Fade audio in/out ──
+  // ── Fade in ──
   const fadeIn = (audio, targetVolume, duration = 500) => {
     audio.volume = 0;
     audio.play().catch(() => {});
-    const steps    = 20;
+    const steps = 20;
     const interval = duration / steps;
-    const step     = targetVolume / steps;
-    let current    = 0;
+    const step = targetVolume / steps;
+    let current = 0;
     const timer = setInterval(() => {
       current += step;
       audio.volume = Math.min(current, targetVolume);
@@ -202,30 +251,26 @@ function Level({ level, setScreen }) {
     }, interval);
   };
 
-  // ── Apply ML layers with desync mechanic ──
+  // ── Apply ML layers ──
   const applyMusicLayers = (layers, harmony_score) => {
-    const newStates = {};
     const MAX_DELAY = 1.2;
+    const newStates = {};
 
     Object.entries(layers).forEach(([key, data]) => {
       const audio = audioRefs.current[key];
       if (!audio) return;
-
       if (data.weight > 0) {
-        // desync: wrong code = offset playback, perfect = aligned
-        const syncScore  = data.synced ? 1.0 : data.weight;
-        const delay      = (1 - syncScore) * MAX_DELAY;
+        const syncScore = data.synced ? 1.0 : data.weight;
+        const delay = (1 - syncScore) * MAX_DELAY;
         audio.currentTime = delay;
         fadeIn(audio, data.weight * 0.85);
         newStates[key] = { active: true, synced: data.synced, volume: data.weight };
       } else {
-        audio.pause();
-        audio.currentTime = 0;
+        audio.pause(); audio.currentTime = 0;
         newStates[key] = { active: false, synced: false, volume: 0 };
       }
     });
 
-    // fill missing keys
     ["drums","chords","bass","melody"].forEach(k => {
       if (!newStates[k]) newStates[k] = { active: false, synced: false, volume: 0 };
     });
@@ -240,7 +285,6 @@ function Level({ level, setScreen }) {
     let layers, score = 0;
 
     if (level.id === 0) {
-      // Level 0: drums=loops, chords=no syntax error, bass=correct output
       const dw = Math.min(loops, 1);
       const cw = syntax_error ? 0 : 1;
       const bw = correct_output ? 1 : 0;
@@ -253,8 +297,22 @@ function Level({ level, setScreen }) {
       if (dw > 0) score += layers.drums.synced  ? 35 : 20;
       if (cw > 0) score += layers.chords.synced ? 35 : 20;
       if (bw > 0) score += 30;
+    } else if (level.id === 2) {
+      const dw = Math.min(loops, 1);
+      const cw = Math.min(conditions, 1);
+      const bw = syntax_error ? 0 : 1;
+      const mw = correct_output ? 1 : 0; // mock: no hidden tests
+      layers = {
+        drums:  { weight: dw, synced: dw > 0 && correct_output },
+        chords: { weight: cw, synced: cw > 0 && correct_output },
+        bass:   { weight: bw, synced: bw > 0 && correct_output },
+        melody: { weight: mw, synced: correct_output },
+      };
+      if (dw > 0) score += layers.drums.synced  ? 25 : 12;
+      if (cw > 0) score += layers.chords.synced ? 25 : 12;
+      if (bw > 0) score += layers.bass.synced   ? 20 : 10;
+      if (mw > 0) score += 30;
     } else {
-      // Level 1: drums=correct_output, chords=conditions, bass=functions, melody=no syntax error
       const dw = correct_output ? 1 : 0;
       const cw = Math.min(conditions, 1);
       const bw = function_presence ? 1 : 0;
@@ -275,7 +333,7 @@ function Level({ level, setScreen }) {
     return Math.min(100, score);
   };
 
-  // ── Typewriter for song name reveal ──
+  // ── Typewriter reveal ──
   const typewriterReveal = (text) => {
     setSongRevealed(true);
     setRevealedText("");
@@ -287,13 +345,7 @@ function Level({ level, setScreen }) {
     }, 80);
   };
 
-  // ── Completion flash ──
-  const triggerFlash = () => {
-    setFlash(true);
-    setTimeout(() => setFlash(false), 800);
-  };
-
-  // ── Harmony bar color (red → orange → yellow → green) ──
+  // ── Harmony color ──
   const harmonyColor = (score) => {
     if (score >= 100) return "var(--accent-green)";
     if (score >= 70)  return "#00e5aa";
@@ -302,18 +354,15 @@ function Level({ level, setScreen }) {
     return "var(--accent-pink)";
   };
 
-  // ── Build test runner for class-based levels ──
-  // Test runner is already embedded in starterCode for class-based levels
-  const getTestRunner = () => "";
-
   // ── Run code ──
   const runCode = async () => {
-    stopBroken();  // stop broken, live engine takes over
+    stopBroken();
     stopAll();
     setLoading(true);
     setCompleted(false);
     setSongRevealed(false);
     setRevealedText("");
+    clearErrorHighlight();
     termRef.current?.writeLoading();
     await new Promise(r => setTimeout(r, 600));
 
@@ -333,34 +382,48 @@ function Level({ level, setScreen }) {
           termRef.current?.writeHint(`Expected output:\n${level.expectedOutput}`);
 
       } else {
+        const expectedOut = language === "javascript"
+          ? (level.expectedOutputJS || level.expectedOutput)
+          : level.expectedOutput;
+
         const res = await axios.post("http://127.0.0.1:8000/analyze-code", {
           code,
           language,
           level_id:            level.id,
-          expected_output:     language === "javascript" ? (level.expectedOutputJS || level.expectedOutput) : level.expectedOutput,
+          expected_output:     expectedOut,
           loops_required:      level.requiredFeatures.includes("loops")      ? 1 : 0,
           conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
           functions_required:  level.requiredFeatures.includes("functions")  ? 1 : 0,
-          test_runner:         getTestRunner(),
+          test_runner:         "",
         });
 
-        const data  = res.data;
+        const data    = res.data;
         syntaxError   = data.analysis.syntax_error;
         correctOutput = data.analysis.correct_output && !syntaxError;
         finalScore    = data.harmony_score;
 
         applyMusicLayers(data.layers, data.harmony_score);
-        termRef.current?.writeOutput(data.output,
-          syntaxError ? "error" : correctOutput ? "success" : "wrong");
-        if (!syntaxError && !correctOutput)
-          termRef.current?.writeHint(`Expected output:\n${level.expectedOutput}`);
+
+        const outputMode = syntaxError ? "error"
+          : data.output.includes("SecurityError") ? "error"
+          : correctOutput ? "success" : "wrong";
+
+        termRef.current?.writeOutput(data.output, outputMode);
+
+        // Error line highlighting
+        if (data.analysis?.error_line) {
+          highlightErrorLine(data.analysis.error_line);
+          termRef.current?.writeErrorLine(data.analysis.error_line);
+        } else if (!syntaxError && !correctOutput) {
+          termRef.current?.writeHint(`Expected output:\n${expectedOut}`);
+        }
       }
 
       if (correctOutput && Math.round(finalScore) === 100) {
         setTimeout(() => {
-          triggerFlash();
+          setFlash(true);
+          setTimeout(() => setFlash(false), 800);
           setCompleted(true);
-          // level unlocked via password in LevelSelect — no action needed here
         }, 1200);
       }
 
@@ -372,36 +435,29 @@ function Level({ level, setScreen }) {
     }
   };
 
-  // ── Ctrl+Enter to run ──
-  const runCodeRef = useRef(null);
-  useEffect(() => { runCodeRef.current = runCode; });
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        runCodeRef.current?.();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const currentLang = LANGUAGES.find(l => l.key === language);
-  const nextLevel   = levels.find(l => l.id === level.id + 1);
-  const layerKeys   = ["drums", "chords", "bass", "melody"].filter(k => level.layers[k] !== null);
+  const currentLang   = LANGUAGES.find(l => l.key === language);
+  const nextLevel     = levels.find(l => l.id === level.id + 1);
+  const layerKeys     = ["drums","chords","bass","melody"].filter(k => level.layers[k] !== null);
 
   const LAYER_DISPLAY = level.id === 0
     ? {
-        drums:  { label: "DRUMS",  desc: "Rhythm",               color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Clarity",              color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Precision",            color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "Harmony",              color: "var(--accent-green)"  },
+        drums:  { label: "DRUMS",  desc: "Rhythm",         color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "Harmony",        color: "var(--accent-green)"  },
+      }
+    : level.id === 2
+    ? {
+        drums:  { label: "DRUMS",  desc: "Iteration",      color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
       }
     : {
-        drums:  { label: "DRUMS",  desc: "Precision",            color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Logic",                color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Structure",            color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "Clarity",              color: "var(--accent-green)"  },
+        drums:  { label: "DRUMS",  desc: "Precision",      color: "var(--accent-cyan)"   },
+        chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+        bass:   { label: "BASS",   desc: "Structure",      color: "var(--accent-pink)"   },
+        melody: { label: "MELODY", desc: "Clarity",        color: "var(--accent-green)"  },
       };
 
   return (
@@ -431,7 +487,6 @@ function Level({ level, setScreen }) {
         </div>
       </div>
 
-      {/* MAIN LAYOUT */}
       <div className="level-layout">
         <div className="level-left">
 
@@ -452,9 +507,9 @@ function Level({ level, setScreen }) {
             )}
             {level.hint && (
               <div className="challenge-hint-box">
-                {/*<span className="hint-icon">◈</span>*/}
+                <span className="hint-icon">◈</span>
                 <p className="challenge-hint">
-                  <span className="hint-label">◈ Hint: </span>{level.hint}
+                  <span className="hint-label">Hint: </span>{level.hint}
                 </p>
               </div>
             )}
@@ -472,8 +527,7 @@ function Level({ level, setScreen }) {
                 {langDropdownOpen && (
                   <div className="lang-dropdown-list">
                     {LANGUAGES.map(lang => (
-                      <button
-                        key={lang.key}
+                      <button key={lang.key}
                         className={`lang-dropdown-item ${language === lang.key ? "lang-dropdown-active" : ""}`}
                         onClick={() => switchLanguage(lang.key)}
                       >
@@ -490,6 +544,7 @@ function Level({ level, setScreen }) {
               theme="vs-dark"
               value={code}
               onChange={v => setCode(v || "")}
+              onMount={(editor) => { editorRef.current = editor; }}
               options={{
                 fontSize: 14,
                 fontFamily: "'Share Tech Mono', monospace",
@@ -512,7 +567,7 @@ function Level({ level, setScreen }) {
                 overviewRulerLanes: 0,
                 wordWrap: "off",
                 padding: { top: 12, bottom: 12 },
-                roundedSelection: true,
+                glyphMargin: true,
                 bracketPairColorization: { enabled: true },
                 guides: { indentation: true },
               }}
@@ -525,7 +580,10 @@ function Level({ level, setScreen }) {
               {loading ? "[ EXECUTING... ]" : "[ RUN CODE ]"}
             </button>
             <span className="shortcut-hint">or Ctrl+Enter</span>
-            <button className="btn" style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)", marginLeft: "auto" }} onClick={resetLevel}>
+            <button className="btn"
+              style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)", marginLeft: "auto" }}
+              onClick={resetLevel}
+            >
               RESET
             </button>
           </div>
@@ -540,13 +598,10 @@ function Level({ level, setScreen }) {
         {/* RIGHT PANEL */}
         <div className="level-right">
 
-          {/* REFERENCE TRACK — perfect version */}
+          {/* REFERENCE TRACK */}
           <div className="reference-panel corner-accent">
             <div className="reference-label">[ REFERENCE_TRACK ]</div>
-            <p className="reference-desc">
-              This is what 100% harmony sounds like.<br />
-              Make your code match it.
-            </p>
+            <p className="reference-desc">This is what 100% harmony sounds like.<br />Make your code match it.</p>
             <div className="reference-layers">
               {layerKeys.map(key => {
                 const cfg = LAYER_DISPLAY[key];
@@ -556,8 +611,7 @@ function Level({ level, setScreen }) {
                     <span className="ref-layer-name">{cfg.label}</span>
                     <div className="ref-wave">
                       {[...Array(5)].map((_, i) => (
-                        <span
-                          key={i}
+                        <span key={i}
                           className={"wave-bar " + (refPlaying ? "" : "wave-paused")}
                           style={{ animationDelay: i * 0.1 + "s" }}
                         />
@@ -569,18 +623,15 @@ function Level({ level, setScreen }) {
             </div>
             <button
               className={"btn " + (refPlaying ? "" : "btn-green")}
-              style={{
-                width: "100%",
-                marginTop: "12px",
-                ...(refPlaying && { borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }),
-              }}
+              style={{ width: "100%", marginTop: "12px",
+                ...(refPlaying && { borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }) }}
               onClick={refPlaying ? stopRef : playRef}
             >
               {refPlaying ? "⏹ STOP REFERENCE" : "▶ PLAY REFERENCE"}
             </button>
           </div>
 
-          {/* LIVE ENGINE — starts broken, gets fixed by your code */}{/* LIVE ENGINE */}
+          {/* LIVE ENGINE */}
           <div className="music-panel corner-accent">
             <div className="music-panel-label">[ LIVE_ENGINE ]</div>
             <p className="reference-desc" style={{ fontSize: "12px", marginBottom: "8px" }}>
@@ -591,8 +642,7 @@ function Level({ level, setScreen }) {
                 const state = layerStates[key];
                 const cfg   = LAYER_DISPLAY[key];
                 return (
-                  <div
-                    key={key}
+                  <div key={key}
                     className={`layer-item ${state.active ? "active" : ""} ${state.synced ? "synced" : ""}`}
                     style={{ "--layer-color": cfg.color }}
                   >
@@ -600,11 +650,9 @@ function Level({ level, setScreen }) {
                     <div className="layer-info">
                       <span className="layer-name">{cfg.label}</span>
                       <span className="layer-desc">
-                        {brokenPlaying && !state.active
-                          ? "⚡ BROKEN"
-                          : state.active
-                            ? state.synced ? "✓ IN SYNC" : "⚠ DRIFTING"
-                            : cfg.desc}
+                        {brokenPlaying && !state.active ? "⚡ BROKEN"
+                          : state.active ? (state.synced ? "✓ IN SYNC" : "⚠ DRIFTING")
+                          : cfg.desc}
                       </span>
                     </div>
                     <div className="layer-right-col">
@@ -614,15 +662,12 @@ function Level({ level, setScreen }) {
                       <div className="layer-wave">
                         {state.active ? (
                           [...Array(5)].map((_, i) => (
-                            <span
-                              key={i}
+                            <span key={i}
                               className={`wave-bar ${state.synced ? "" : "drifting-wave"}`}
                               style={{ animationDelay: `${i * 0.1}s` }}
                             />
                           ))
-                        ) : (
-                          <span className="layer-inactive">—</span>
-                        )}
+                        ) : <span className="layer-inactive">—</span>}
                       </div>
                     </div>
                   </div>
@@ -632,16 +677,13 @@ function Level({ level, setScreen }) {
             <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
               <button
                 className={`btn ${brokenPlaying ? "" : "btn-purple"}`}
-                style={{
-                  flex: 1,
-                  ...(brokenPlaying && { borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }),
-                }}
+                style={{ flex: 1,
+                  ...(brokenPlaying && { borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }) }}
                 onClick={brokenPlaying ? stopBroken : playBroken}
               >
                 {brokenPlaying ? "⏹ STOP" : "▶ PLAY"}
               </button>
-              <button
-                className="btn"
+              <button className="btn"
                 style={{ flex: 1, borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
                 onClick={stopAll}
               >
@@ -672,7 +714,8 @@ function Level({ level, setScreen }) {
                     <>
                       <p className="song-name-hint">Use this as the password for the next level.</p>
                       {nextLevel && (
-                        <button className="btn btn-purple" onClick={() => { stopAll(); setScreen("levelselect"); }}>
+                        <button className="btn btn-purple"
+                          onClick={() => { stopAll(); setScreen("levelselect"); }}>
                           GO TO LEVEL SELECT →
                         </button>
                       )}
@@ -682,7 +725,6 @@ function Level({ level, setScreen }) {
               )}
             </div>
           )}
-
         </div>
       </div>
     </div>
