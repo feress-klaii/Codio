@@ -168,7 +168,8 @@ def run_hidden_tests(user_code: str, level_id: int) -> bool:
                 return False
 
             lines = result.stdout.strip().split("\n")
-            return all(line.strip() == "HIDDEN_PASS" for line in lines)
+            results = [l.strip() for l in lines if l.strip() in ("HIDDEN_PASS", "HIDDEN_FAIL")]
+            return len(results) == len(tests) and all(r == "HIDDEN_PASS" for r in results)
 
         except Exception:
             return False

@@ -17,6 +17,7 @@ const LAYER_DELAYS = {
 };
 
 const BROKEN_OFFSETS = { drums: 0.8, chords: 1.4, bass: 0.6, melody: 1.9 };
+const MAX_ENTRY_DELAY = 2.2; // seconds — how late a badly-synced layer can join in
 const BROKEN_VOLUMES = { drums: 0.3, chords: 0.25, bass: 0.2, melody: 0.15 };
 
 const LANGUAGES = [
@@ -90,6 +91,19 @@ const getStarterCode = (levelId, lang) => {
   return STARTER_CODE[levelId]?.python || levels.find(l => l.id === levelId)?.starterCode || "# Write your code here\n";
 };
 
+// ── Distortion curve generator for WaveShaperNode ──
+function makeDistortionCurve(amount) {
+  const k = amount * 100;
+  const n = 44100;
+  const curve = new Float32Array(n);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+}
+
 function Level({ level, setScreen }) {
   const [code, setCode]                   = useState(() => getStarterCode(level.id, "python"));
   const [language, setLanguage]           = useState("python");
@@ -102,6 +116,7 @@ function Level({ level, setScreen }) {
   const [harmonyScore, setHarmonyScore]   = useState(0);
   const [brokenPlaying, setBrokenPlaying] = useState(false);
   const [refPlaying, setRefPlaying]       = useState(false);
+  const [hintRevealed, setHintRevealed]   = useState(false);
   const [layerStates, setLayerStates]     = useState({
     drums:  { active: false, synced: false, volume: 0 },
     chords: { active: false, synced: false, volume: 0 },
@@ -109,34 +124,89 @@ function Level({ level, setScreen }) {
     melody: { active: false, synced: false, volume: 0 },
   });
 
-  const termRef    = useRef(null);
-  const editorRef  = useRef(null);
-  const errorDecos = useRef([]);
-  const audioRefs  = useRef({});
-  const brokenRefs = useRef({});
-  const refAudioRefs = useRef({});
+  const termRef       = useRef(null);
+  const editorRef     = useRef(null);
+  const errorDecos    = useRef([]);
+  const audioRefs     = useRef({});
+  const brokenRefs    = useRef({});
+  const refAudioRefs  = useRef({});
 
-  // ── Initialize audio ──
+  // ── Web Audio API graph for distortion ──
+  const audioCtxRef   = useRef(null);
+  const fxNodesRef     = useRef({}); // key -> { source, cleanGain, distGain, waveshaper, filter }
+  const entryTimersRef = useRef({}); // key -> setTimeout id, for staggered entrances
+
+  // ── Initialize audio + distortion routing ──
   useEffect(() => {
     const layerKeys = Object.keys(level.layers).filter(k => level.layers[k] !== null);
+
+    // Lazily create AudioContext (must happen after a user gesture in most browsers,
+    // but creating it is fine — resuming happens on first Run Code click)
+    if (!audioCtxRef.current) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioCtxRef.current = new AudioCtx();
+    }
+    const ctx = audioCtxRef.current;
+
     layerKeys.forEach((key) => {
       const src = level.layers[key].src;
+
+      // Live layer — routed through distortion graph
       const live = new Audio(src);
-      live.loop = true; live.volume = 0;
+      live.loop = true;
+      live.volume = 1; // overall volume now controlled by gain nodes below
+      live.crossOrigin = "anonymous";
       audioRefs.current[key] = live;
 
+      try {
+        const source     = ctx.createMediaElementSource(live);
+        const cleanGain   = ctx.createGain();
+        const distGain    = ctx.createGain();
+        const waveshaper  = ctx.createWaveShaper();
+        const filter      = ctx.createBiquadFilter();
+
+        waveshaper.curve = makeDistortionCurve(0.6);
+        waveshaper.oversample = "2x";
+        filter.type = "lowpass";
+        filter.frequency.value = 1800; // muffled tone when distorted
+
+        cleanGain.gain.value = 1;
+        distGain.gain.value  = 0;
+
+        // Clean path: source -> cleanGain -> destination
+        source.connect(cleanGain);
+        cleanGain.connect(ctx.destination);
+
+        // Distorted path: source -> waveshaper -> filter -> distGain -> destination
+        source.connect(waveshaper);
+        waveshaper.connect(filter);
+        filter.connect(distGain);
+        distGain.connect(ctx.destination);
+
+        fxNodesRef.current[key] = { source, cleanGain, distGain, waveshaper, filter };
+      } catch (e) {
+        // If routing fails (e.g. re-init), fall back to plain playback
+        console.warn("Audio FX routing failed for", key, e);
+      }
+
+      // Broken reference layer — plain, no distortion needed (already chaotic via offset)
       const broken = new Audio(src);
       broken.loop = true; broken.volume = 0;
       brokenRefs.current[key] = broken;
 
+      // Perfect reference — plain, full volume
       const ref = new Audio(src);
       ref.loop = true; ref.volume = 1;
       refAudioRefs.current[key] = ref;
     });
+
     return () => {
+      Object.values(entryTimersRef.current).forEach(id => clearTimeout(id));
+      entryTimersRef.current = {};
       [audioRefs, brokenRefs, refAudioRefs].forEach(group => {
         Object.values(group.current).forEach(a => { a.pause(); a.src = ""; });
       });
+      fxNodesRef.current = {};
     };
   }, [level]);
 
@@ -157,7 +227,6 @@ function Level({ level, setScreen }) {
   // ── Error line highlighting ──
   const highlightErrorLine = (lineNumber) => {
     if (!editorRef.current || !lineNumber) return;
-    // Clear old decorations
     errorDecos.current = editorRef.current.deltaDecorations(errorDecos.current, [
       {
         range: { startLineNumber: lineNumber, startColumn: 1, endLineNumber: lineNumber, endColumn: 1 },
@@ -211,6 +280,8 @@ function Level({ level, setScreen }) {
 
   // ── Stop all ──
   const stopAll = () => {
+    Object.values(entryTimersRef.current).forEach(id => clearTimeout(id));
+    entryTimersRef.current = {};
     Object.values(audioRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
     stopBroken();
     stopRef();
@@ -232,14 +303,18 @@ function Level({ level, setScreen }) {
     setSongRevealed(false);
     setRevealedText("");
     setHarmonyScore(0);
+    setHintRevealed(false);
     clearErrorHighlight();
     termRef.current?.clear();
   };
 
-  // ── Fade in ──
+  // ── Fade in (overall element volume) ──
   const fadeIn = (audio, targetVolume, duration = 500) => {
     audio.volume = 0;
     audio.play().catch(() => {});
+    if (audioCtxRef.current?.state === "suspended") {
+      audioCtxRef.current.resume().catch(() => {});
+    }
     const steps = 20;
     const interval = duration / steps;
     const step = targetVolume / steps;
@@ -251,22 +326,74 @@ function Level({ level, setScreen }) {
     }, interval);
   };
 
+  // ── Ramp a gain node smoothly (avoids clicks/pops) ──
+  const rampGain = (gainNode, targetValue, duration = 0.5) => {
+    if (!gainNode || !audioCtxRef.current) return;
+    const now = audioCtxRef.current.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.linearRampToValueAtTime(targetValue, now + duration);
+  };
+
+  // ── Set how "distorted" a layer sounds based on its correctness ──
+  // synced=true  → fully clean (distortion mix = 0)
+  // active but not synced → mostly clean but audibly gritty at the edges
+  // inactive/weight low → more distortion bleeding through
+  const setLayerDistortion = (key, { active, synced, weight }) => {
+    const fx = fxNodesRef.current[key];
+    if (!fx) return;
+
+    let distortionMix;
+    if (!active) {
+      distortionMix = 0; // silent layer, nothing to hear distorted
+    } else if (synced) {
+      distortionMix = 0; // condition fully met — clean signal
+    } else {
+      // Condition partially met — the lower the weight, the grittier it sounds.
+      // Capped so it stays musical rather than pure noise.
+      distortionMix = Math.min(0.55, 0.2 + (1 - weight) * 0.5);
+    }
+
+    rampGain(fx.cleanGain, 1 - distortionMix, 0.6);
+    rampGain(fx.distGain, distortionMix, 0.6);
+  };
+
   // ── Apply ML layers ──
+  // Combines two desync effects, both driven by the same per-layer syncScore:
+  //   phaseDelay  → WHERE in the loop the layer starts (out of phase, like it's mid-beat)
+  //   entryDelay  → WHEN the layer starts playing at all (joins in late, like it wasn't ready)
+  // At syncScore = 1 (fully correct) both are 0 → every layer starts together, in phase.
+  const MAX_PHASE_DELAY = 1.2;
+
   const applyMusicLayers = (layers, harmony_score) => {
-    const MAX_DELAY = 1.2;
     const newStates = {};
+
+    // Cancel any entrances still waiting from a previous run before scheduling new ones
+    Object.values(entryTimersRef.current).forEach(id => clearTimeout(id));
+    entryTimersRef.current = {};
 
     Object.entries(layers).forEach(([key, data]) => {
       const audio = audioRefs.current[key];
       if (!audio) return;
+
       if (data.weight > 0) {
-        const syncScore = data.synced ? 1.0 : data.weight;
-        const delay = (1 - syncScore) * MAX_DELAY;
-        audio.currentTime = delay;
-        fadeIn(audio, data.weight * 0.85);
+        const syncScore  = data.synced ? 1.0 : data.weight;
+        const phaseDelay = (1 - syncScore) * MAX_PHASE_DELAY;   // seconds, position in loop
+        const entryDelay = (1 - syncScore) * MAX_ENTRY_DELAY;   // seconds, wall-clock join time
+
+        // Pause and pre-position the layer while it waits its turn to join
+        audio.pause();
+        audio.currentTime = phaseDelay;
+
+        entryTimersRef.current[key] = setTimeout(() => {
+          fadeIn(audio, 0.85);
+          setLayerDistortion(key, { active: true, synced: data.synced, weight: data.weight });
+        }, entryDelay * 1000);
+
         newStates[key] = { active: true, synced: data.synced, volume: data.weight };
       } else {
         audio.pause(); audio.currentTime = 0;
+        setLayerDistortion(key, { active: false, synced: false, weight: 0 });
         newStates[key] = { active: false, synced: false, volume: 0 };
       }
     });
@@ -301,7 +428,7 @@ function Level({ level, setScreen }) {
       const dw = Math.min(loops, 1);
       const cw = Math.min(conditions, 1);
       const bw = syntax_error ? 0 : 1;
-      const mw = correct_output ? 1 : 0; // mock: no hidden tests
+      const mw = correct_output ? 1 : 0;
       layers = {
         drums:  { weight: dw, synced: dw > 0 && correct_output },
         chords: { weight: cw, synced: cw > 0 && correct_output },
@@ -356,6 +483,9 @@ function Level({ level, setScreen }) {
 
   // ── Run code ──
   const runCode = async () => {
+    if (audioCtxRef.current?.state === "suspended") {
+      audioCtxRef.current.resume().catch(() => {});
+    }
     stopBroken();
     stopAll();
     setLoading(true);
@@ -410,7 +540,6 @@ function Level({ level, setScreen }) {
 
         termRef.current?.writeOutput(data.output, outputMode);
 
-        // Error line highlighting
         if (data.analysis?.error_line) {
           highlightErrorLine(data.analysis.error_line);
           termRef.current?.writeErrorLine(data.analysis.error_line);
@@ -506,12 +635,19 @@ function Level({ level, setScreen }) {
               </div>
             )}
             {level.hint && (
-              <div className="challenge-hint-box">
-                <span className="hint-icon">◈</span>
-                <p className="challenge-hint">
-                  <span className="hint-label">Hint: </span>{level.hint}
-                </p>
-              </div>
+              hintRevealed ? (
+                <div className="challenge-hint-box">
+                  <span className="hint-icon">◈</span>
+                  <p className="challenge-hint">
+                    <span className="hint-label">Hint: </span>{level.hint}
+                  </p>
+                </div>
+              ) : (
+                <button className="hint-reveal-btn" onClick={() => setHintRevealed(true)}>
+                  <span className="hint-icon">◈</span>
+                  <span>Click to reveal hint</span>
+                </button>
+              )
             )}
           </div>
 
