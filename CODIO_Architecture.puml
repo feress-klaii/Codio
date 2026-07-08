@@ -1,0 +1,269 @@
+@startuml CODIO_Architecture
+
+!define ACCENT1 #FF1493
+!define ACCENT2 #00FF00
+!define ACCENT3 #1E90FF
+!define ACCENT4 #FFD700
+
+skinparam backgroundColor #1a1a1a
+skinparam classBkgColor #2a2a2a
+skinparam classBorderColor ACCENT1
+skinparam noteBkgColor #3a3a3a
+skinparam noteBorderColor ACCENT2
+skinparam arrowColor ACCENT2
+skinparam classArrowColor ACCENT2
+
+title CODIO - Rhythm-Based Coding Education Platform\n<color:ACCENT1>Complete System Architecture</color>
+
+package "Frontend - React Application" {
+    
+    class MAIN {
+        <color:ACCENT2><b>main.jsx - Entry Point</b></color>
+        --
+        Mounts App to #root DOM
+        Wraps in React.StrictMode
+    }
+    
+    class APP {
+        <color:ACCENT2><b>App.jsx - Router/State</b></color>
+        --
+        Central navigation controller
+        Manages screen state
+        (landing/levelselect/level)
+    }
+    
+    package "Pages" {
+        class LANDING {
+            <color:ACCENT3><b>Landing.jsx</b></color>
+            --
+            Typewriter animation
+            Glitch effects on logo
+        }
+        
+        class LEVELSELECT {
+            <color:ACCENT3><b>LevelSelect.jsx</b></color>
+            --
+            Password unlock system
+            Session-based persistence
+        }
+        
+        class LEVEL {
+            <color:ACCENT3><b>Level.jsx</b></color>
+            --
+            Code editor interface
+            ML analysis pipeline
+            Audio feedback system
+        }
+    }
+    
+    package "Components" {
+        class TERMINAL {
+            <color:ACCENT4><b>XTerminal.jsx</b></color>
+            --
+            xterm.js web terminal
+            Color-coded output display
+        }
+    }
+    
+    package "Data & Utils" {
+        class LEVELS {
+            <color:ACCENT4><b>levels.js</b></color>
+            --
+            Level metadata
+            Challenges and audio mappings
+        }
+        
+        class MOCKRUNNER {
+            <color:ACCENT4><b>Mockrunner.js</b></color>
+            --
+            Client-side code simulation
+            Fallback execution
+        }
+    }
+}
+
+package "Backend - FastAPI Server" {
+    
+    class BACKEND {
+        <color:ACCENT2><b>main.py - FastAPI Server</b></color>
+        --
+        CORS enabled for localhost:5173
+        Timeout: 5 seconds per run
+    }
+    
+    package "API Endpoints" {
+        class RUNCODE {
+            <color:ACCENT3><b>POST /run-code</b></color>
+            --
+            Executes user code
+            Captures stdout/stderr
+        }
+        
+        class ANALYZE {
+            <color:ACCENT3><b>POST /analyze-code</b></color>
+            --
+            AST/Regex parsing
+            ML prediction
+            Score calculation
+        }
+    }
+    
+    package "Analysis Pipeline" {
+        class PARSER {
+            <color:ACCENT4><b>Code Parser</b></color>
+            --
+            Python: AST analysis
+            JS: Regex patterns
+            Extracts features
+        }
+        
+        class EXECUTOR {
+            <color:ACCENT4><b>Code Executor</b></color>
+            --
+            Subprocess runner
+            Temp file management
+            Output capture
+        }
+        
+        class MLMODEL {
+            <color:ACCENT4><b>ML Model</b></color>
+            --
+            MultiOutput RandomForest
+            Predicts harmony score
+            Layer weights (4 outputs)
+        }
+    }
+    
+    package "Score Calculation" {
+        class SCORER0 {
+            <color:ACCENT4><b>Level 0 Scorer</b></color>
+            --
+            Drums = loops
+            Chords = syntax
+            Bass = output
+        }
+        
+        class SCORER1 {
+            <color:ACCENT4><b>Level 1+ Scorer</b></color>
+            --
+            Drums = output
+            Chords = conditions
+            Bass = functions
+            Melody = syntax
+        }
+    }
+}
+
+package "Data Models" {
+    class CodeRequest {
+        - code: string
+        - language: "python" | "javascript"
+        - expected_output: string
+    }
+    
+    class AnalyzeRequest {
+        - code: string
+        - language: string
+        - level_id: integer
+        - loops_required: boolean
+        - conditions_required: boolean
+        - functions_required: boolean
+        - expected_output: string
+        - test_runner: string
+    }
+    
+    class MLFeatures {
+        - loops: int
+        - conditions: int
+        - functions_present: boolean
+        - correct_output: boolean
+        - nested_depth: int
+        - loops_required: boolean
+        - conditions_required: boolean
+        - functions_required: boolean
+    }
+    
+    class PredictionOutput {
+        - harmony_score: float (0-100)
+        - drum_weight: float (0-1)
+        - chord_weight: float (0-1)
+        - bass_weight: float (0-1)
+    }
+    
+    class AudioLayer {
+        - type: "live" | "broken" | "perfect"
+        - volume: float (0-1)
+        - offset: int (ms)
+        - filename: string
+    }
+}
+
+package "ML Training" {
+    class TRAINER {
+        <color:ACCENT2><b>train_model.py</b></color>
+        --
+        ~60 training samples
+        RandomForest (300 trees)
+        Outputs: harmony_model.pkl
+    }
+}
+
+''' Component Relationships
+MAIN --> APP : "mounts"
+APP --> LANDING : "screen=landing"
+APP --> LEVELSELECT : "screen=levelselect"
+APP --> LEVEL : "screen=level"
+
+LEVEL --> TERMINAL : "displays output"
+LEVEL --> LEVELS : "reads data"
+LEVEL --> MOCKRUNNER : "fallback"
+
+LEVELSELECT --> LEVELS : "reads metadata"
+
+LEVEL --> RUNCODE : "axios POST"
+LEVEL --> ANALYZE : "axios POST"
+
+RUNCODE --> EXECUTOR : "executes"
+ANALYZE --> PARSER : "extract features"
+ANALYZE --> EXECUTOR : "executes"
+ANALYZE --> MLMODEL : "predicts"
+ANALYZE --> SCORER0 : "level_id=0"
+ANALYZE --> SCORER1 : "level_id>0"
+
+MLMODEL --> TRAINER : "trained by"
+
+CodeRequest --|> AnalyzeRequest
+MLFeatures --|> AnalyzeRequest
+PredictionOutput --|> AudioLayer
+
+''' Data Flow Notes
+note right of LEVELSELECT
+    <b><color:ACCENT1>Password Flow:</color></b>
+    Level 0 → "THE BEGINNING"
+    ↓ (password)
+    Level 1 → "16 PUNKS"
+    ↓ (would unlock Level 2)
+end note
+
+note right of LEVEL
+    <b><color:ACCENT1>Audio Feedback Loop:</color></b>
+    Code submitted
+    ↓
+    ML predicts weights
+    ↓
+    applyMusicLayers()
+    ↓
+    fadeIn() animation
+    ↓
+    Output correct → all layers synced
+end note
+
+note bottom
+    <color:ACCENT1><b>Technology Stack</b></color>
+    <b>Frontend:</b> React 19, Vite, Monaco Editor, xterm.js, axios
+    <b>Backend:</b> FastAPI, Python AST, JavaScript Regex, scikit-learn, RandomForest
+    <b>Storage:</b> Session memory, ML model pickle file
+    <b>Styling:</b> CSS (cyberpunk theme)
+end note
+
+@enduml

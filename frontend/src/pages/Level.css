@@ -670,3 +670,51 @@
 .editor-wrapper .monaco-editor .overflow-guard {
   border-radius: 0 !important;
 }
+/* ── HINT REVEAL BUTTON (click to unhide) ── */
+.hint-reveal-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px dashed rgba(176, 68, 255, 0.3);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.hint-reveal-btn:hover {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+  background: rgba(176, 68, 255, 0.05);
+}
+
+.hint-reveal-btn .hint-icon {
+  color: var(--accent-purple);
+  font-size: 12px;
+  animation: pulse-glow 2s infinite;
+}
+
+/* ── LANGUAGE DROPDOWN — enlarged ── */
+.lang-dropdown-btn {
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  gap: 8px !important;
+}
+
+.lang-dropdown-list {
+  min-width: 170px !important;
+}
+
+.lang-dropdown-item {
+  font-size: 13px !important;
+  padding: 11px 16px !important;
+}
+
+.lang-arrow {
+  font-size: 10px !important;
+}
