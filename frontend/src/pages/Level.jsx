@@ -525,6 +525,7 @@ function Level({ level, setScreen }) {
           conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
           functions_required:  level.requiredFeatures.includes("functions")  ? 1 : 0,
           test_runner:         "",
+          criteria:            level.criteria || null, // ← generic scoring config
         });
 
         const data    = res.data;

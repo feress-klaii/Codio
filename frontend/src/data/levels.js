@@ -15,6 +15,14 @@ export const levels = [
     songName: "THE BEGINNING",
     requiredFeatures: ["loops"],
     hint: "Try using a for loop with range().",
+    // ── Generic scoring criteria ──
+    // Each criterion maps a check (key) to an audio layer and a point weight.
+    // The backend scores these generically — no per-level code needed.
+    criteria: [
+      { key: "loops",           layer: "drums",  weight: 35 },
+      { key: "no_syntax_error", layer: "chords", weight: 35 },
+      { key: "correct_output",  layer: "bass",   weight: 30 },
+    ],
     layers: {
       drums:  { src: "/audio/drums0.mp3",  broken: true },
       chords: { src: "/audio/chords0.mp3", broken: true },
@@ -49,11 +57,7 @@ print(sol.isPalindrome(-121))
 print(sol.isPalindrome(10))
 `,
     starterCodeJS:
-`/**
- * @param {number} x
- * @return {boolean}
- */
-var isPalindrome = function(x) {
+`var isPalindrome = function(x) {
     // Complete this function
     // Return true if x is a palindrome, false otherwise
 };
@@ -68,11 +72,17 @@ console.log(isPalindrome(10));
     songName: "16 PUNKS",
     requiredFeatures: ["functions", "conditions"],
     hint: "Convert x to a string and compare it to its reverse. Negative numbers are never palindromes.",
+    criteria: [
+      { key: "correct_output",  layer: "drums",  weight: 30 },
+      { key: "conditions",      layer: "chords", weight: 25 },
+      { key: "functions",       layer: "bass",   weight: 25 },
+      { key: "no_syntax_error", layer: "melody", weight: 20 },
+    ],
     layers: {
       drums:  { src: "/audio/drums11.mp3",  broken: true },
       chords: { src: "/audio/chords11.mp3", broken: true },
       bass:   { src: "/audio/bass11.mp3",   broken: true },
-      melody: { src: "/audio/melody11.mp3", broken: true },
+      melody: { src: "/audio/melody11.mp3", broken: true }
     },
   },
   {
@@ -100,11 +110,7 @@ print(sumEven([1, 3, 5]))
 print(sumEven([2, 4, 6, 8]))
 `,
     starterCodeJS:
-`/**
- * @param {number[]} nums
- * @return {number}
- */
-var sumEven = function(nums) {
+`var sumEven = function(nums) {
     // Complete this function
     // Return the sum of all even numbers in nums
 };
@@ -116,7 +122,6 @@ console.log(sumEven([2, 4, 6, 8]));
 `,
     expectedOutput:   "6\n0\n20",
     expectedOutputJS: "6\n0\n20",
-    // Hidden test cases — validated server-side only, never shown to user
     hiddenTests: [
       { input: [],           expected: 0   },
       { input: [-2, -4, 1], expected: -6  },
@@ -126,9 +131,15 @@ console.log(sumEven([2, 4, 6, 8]));
       { input: [2, 2, 2],   expected: 6   },
       { input: [-1, -2, -3, -4], expected: -6 },
     ],
-    songName: "Static Tomorrow",
+    songName: "TBD",
     requiredFeatures: ["loops", "conditions"],
     hint: "Loop through the list and check if each number is divisible by 2 using the % operator.",
+    criteria: [
+      { key: "loops",             layer: "drums",  weight: 25 },
+      { key: "conditions",        layer: "chords", weight: 25 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
     layers: {
       drums:  { src: "/audio/drums2.mp3",  broken: true },
       chords: { src: "/audio/chords2.mp3", broken: true },

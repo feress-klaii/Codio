@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional
 import subprocess
 import tempfile
 import os
@@ -30,7 +31,7 @@ except FileNotFoundError:
 
 JS_ANALYZER_PATH = os.path.join(os.path.dirname(__file__), "analyze_js.js")
 
-# ── Blocked imports (security) ──
+# ── Security: blocked imports ──
 BLOCKED_IMPORTS = {
     "os", "sys", "subprocess", "shutil", "socket",
     "requests", "urllib", "http", "ftplib", "smtplib",
@@ -40,7 +41,7 @@ BLOCKED_IMPORTS = {
     "atexit", "gc", "inspect", "pdb", "traceback",
 }
 
-# ── Hidden test cases per level ──
+# ── Hidden test cases per level (server-side only, never sent to frontend) ──
 HIDDEN_TESTS = {
     2: [
         {"input": [],            "expected": 0  },
@@ -53,12 +54,18 @@ HIDDEN_TESTS = {
     ]
 }
 
+
 # ── Request models ──
 
 class CodeRequest(BaseModel):
     code: str
     language: str = "python"
     expected_output: str = ""
+
+class Criterion(BaseModel):
+    key: str      # loops | conditions | functions | no_syntax_error | correct_output | all_hidden_passed
+    layer: str    # drums | chords | bass | melody
+    weight: float
 
 class AnalyzeRequest(BaseModel):
     code: str
@@ -69,6 +76,7 @@ class AnalyzeRequest(BaseModel):
     functions_required: int = 0
     test_runner: str = ""
     level_id: int = 0
+    criteria: Optional[List[Criterion]] = None  # ← the new generic scoring config
 
 LANGUAGE_CONFIG = {
     "python":     {"runner": "python", "suffix": ".py",  "use_ast": True},
@@ -76,71 +84,117 @@ LANGUAGE_CONFIG = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# GENERIC CRITERIA-BASED SCORER
+# This single function replaces what used to be a separate elif branch
+# hardcoded per level. Any level can define any combination of criteria
+# and this function scores it — no backend code changes needed for new levels.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Maps a criterion "key" to a function that evaluates it as True/False,
+# given the AST analysis dict, whether output was correct, and whether
+# hidden tests passed.
+def evaluate_criterion(key: str, analysis: dict, correct_output: bool, all_hidden_passed: bool) -> bool:
+    if key == "loops":
+        return analysis.get("loops", 0) > 0
+    if key == "conditions":
+        return analysis.get("conditions", 0) > 0
+    if key == "functions":
+        return bool(analysis.get("function_presence", False))
+    if key == "no_syntax_error":
+        return not analysis.get("syntax_error", False)
+    if key == "correct_output":
+        return correct_output
+    if key == "all_hidden_passed":
+        return all_hidden_passed
+    # Unknown criterion key — fail safe (counts as not satisfied)
+    return False
+
+
+def score_from_criteria(criteria: list, analysis: dict, correct_output: bool, all_hidden_passed: bool):
+    """
+    Generic scorer. Takes a list of {key, layer, weight} criteria and produces
+    the same shape of output the old hardcoded elif branches used to produce:
+    a harmony_score and a layers dict with weight/synced per layer.
+
+    A layer's weight is binary (1.0 if its criterion is satisfied, 0.0 if not) —
+    this matches the previous behavior. A layer is "synced" only when its own
+    criterion holds AND the overall code output is correct, so a layer never
+    shows as fully resolved while the code is still wrong overall.
+    """
+    layers = {
+        "drums":  {"weight": 0.0, "synced": False},
+        "chords": {"weight": 0.0, "synced": False},
+        "bass":   {"weight": 0.0, "synced": False},
+        "melody": {"weight": 0.0, "synced": False},
+    }
+
+    score = 0.0
+    max_score = 0.0
+
+    for c in criteria:
+        key    = c["key"]
+        layer  = c["layer"]
+        weight = c["weight"]
+        max_score += weight
+
+        satisfied = evaluate_criterion(key, analysis, correct_output, all_hidden_passed)
+
+        if layer in layers:
+            layers[layer]["weight"] = 1.0 if satisfied else 0.0
+            # synced requires both this criterion AND overall correctness
+            layers[layer]["synced"] = satisfied and correct_output
+
+        if satisfied:
+            score += weight
+
+    # Normalize to 0-100 in case criteria weights don't sum to exactly 100
+    harmony_score = (score / max_score * 100) if max_score > 0 else 0.0
+
+    return layers, float(min(100, round(harmony_score)))
+
+
 # ── Security: scan for blocked imports ──
 
-def check_blocked_imports(code: str) -> str | None:
-    """
-    Returns the name of the first blocked import found,
-    or None if the code is safe.
-    """
+def check_blocked_imports(code: str):
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return None  # syntax errors handled elsewhere
-
+        return None
     for node in ast.walk(tree):
-        # import os / import sys
         if isinstance(node, ast.Import):
             for alias in node.names:
                 base = alias.name.split(".")[0]
                 if base in BLOCKED_IMPORTS:
                     return alias.name
-        # from os import path / from sys import argv
         if isinstance(node, ast.ImportFrom):
             if node.module:
                 base = node.module.split(".")[0]
                 if base in BLOCKED_IMPORTS:
                     return node.module
-
     return None
 
 
 # ── Error line extraction ──
 
-def extract_error_line(error_output: str) -> int | None:
-    """
-    Parses Python/JS error output to find the line number.
-    Python: '  File "...", line 4'
-    JS:     'at Object.<anonymous> (...:16:1)'
-    """
-    # Python format
+def extract_error_line(error_output: str):
     py_match = re.search(r'line (\d+)', error_output)
     if py_match:
         return int(py_match.group(1))
-
-    # JS format: filename:line:col
     js_match = re.search(r':(\d+):\d+\)', error_output)
     if js_match:
         return int(js_match.group(1))
-
     return None
 
 
-# ── Hidden test runner (Python only for now) ──
+# ── Hidden test runner ──
 
 def run_hidden_tests(user_code: str, level_id: int) -> bool:
-    """
-    Runs hidden test cases for the given level against the user's function.
-    Returns True if all hidden tests pass, False otherwise.
-    Never reveals test cases or results to the user.
-    """
     tests = HIDDEN_TESTS.get(level_id)
     if not tests:
-        return True  # no hidden tests for this level
+        return True
 
     if level_id == 2:
-        # Build a test script that imports the user's function
-        # and runs all hidden cases, printing PASS/FAIL
         test_lines = [user_code, "\n"]
         for i, test in enumerate(tests):
             inp = json.dumps(test["input"])
@@ -152,25 +206,16 @@ def run_hidden_tests(user_code: str, level_id: int) -> bool:
         test_code = "\n".join(test_lines)
 
         try:
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=".py", mode="w", encoding="utf-8"
-            ) as f:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as f:
                 f.write(test_code)
                 fname = f.name
-
-            result = subprocess.run(
-                ["python", fname],
-                capture_output=True, text=True, timeout=5
-            )
+            result = subprocess.run(["python", fname], capture_output=True, text=True, timeout=5)
             os.unlink(fname)
-
             if result.returncode != 0:
                 return False
-
             lines = result.stdout.strip().split("\n")
             results = [l.strip() for l in lines if l.strip() in ("HIDDEN_PASS", "HIDDEN_FAIL")]
             return len(results) == len(tests) and all(r == "HIDDEN_PASS" for r in results)
-
         except Exception:
             return False
 
@@ -185,7 +230,6 @@ def run_code(request: CodeRequest):
     config = LANGUAGE_CONFIG.get(lang, LANGUAGE_CONFIG["python"])
     code   = request.code
 
-    # Security check
     if config["use_ast"]:
         blocked = check_blocked_imports(code)
         if blocked:
@@ -214,7 +258,7 @@ def run_code(request: CodeRequest):
         return {"output": str(e), "analysis": {**analysis, "correct_output": False, "error_line": None}}
 
 
-# ── /analyze-code ──
+# ── /analyze-code — now fully generic via criteria ──
 
 @app.post("/analyze-code")
 def analyze_code_ml(request: AnalyzeRequest):
@@ -259,7 +303,7 @@ def analyze_code_ml(request: AnalyzeRequest):
             "analysis": {**ast_analysis, "error_line": ast_analysis.get("error_line"), "all_hidden_passed": False}
         }
 
-    # Execute public test runner
+    # Execute
     output         = ""
     correct_output = False
     error_line     = None
@@ -273,109 +317,62 @@ def analyze_code_ml(request: AnalyzeRequest):
     except Exception as e:
         output = str(e)
 
-    # Run hidden tests (only if public tests pass, to save time)
-    all_hidden_passed = False
+    # Hidden tests
+    all_hidden_passed = True
     if correct_output and request.level_id in HIDDEN_TESTS:
         all_hidden_passed = run_hidden_tests(code, request.level_id)
-    elif request.level_id not in HIDDEN_TESTS:
-        all_hidden_passed = True  # no hidden tests for this level
+    elif request.level_id in HIDDEN_TESTS:
+        all_hidden_passed = False  # public tests didn't even pass
 
     ast_analysis["correct_output"]    = correct_output
     ast_analysis["error_line"]        = error_line
     ast_analysis["all_hidden_passed"] = all_hidden_passed
 
-    # ML prediction
-    features = np.array([[
-        ast_analysis["loops"],
-        ast_analysis["conditions"],
-        1 if ast_analysis["function_presence"] else 0,
-        1 if correct_output else 0,
-        ast_analysis["nested_depth"],
-        request.loops_required,
-        request.conditions_required,
-        request.functions_required,
-    ]])
-
-    if harmony_model is not None:
-        prediction    = harmony_model.predict(features)[0]
-        harmony_score = float(np.clip(round(prediction[0]), 0, 100))
-        drum_weight   = float(np.clip(prediction[1], 0.0, 1.0))
-        chord_weight  = float(np.clip(prediction[2], 0.0, 1.0))
-        bass_weight   = float(np.clip(prediction[3], 0.0, 1.0))
-    else:
-        harmony_score = 100.0 if correct_output else 30.0
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
-
-    # ── Level-aware layer mapping ──
-
-    if request.level_id == 0:
-        # drums=loops, chords=no_syntax_error, bass=correct_output
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 0.0 if ast_analysis["syntax_error"] else 1.0
-        bass_weight   = 1.0 if correct_output else 0.0
-        melody_weight = 0.0
-        drum_synced   = drum_weight  > 0 and correct_output
-        chord_synced  = chord_weight > 0 and correct_output
-        bass_synced   = correct_output
-        melody_synced = False
-        score = 0
-        if drum_weight  > 0: score += 35 if drum_synced  else 20
-        if chord_weight > 0: score += 35 if chord_synced else 20
-        if bass_weight  > 0: score += 30
-        harmony_score = float(min(100, score))
-
-    elif request.level_id == 1:
-        # drums=correct_output, chords=conditions, bass=functions, melody=no_syntax_error
-        drum_weight   = 1.0 if correct_output else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
-        melody_weight = 0.0 if ast_analysis["syntax_error"] else 1.0
-        drum_synced   = correct_output
-        chord_synced  = correct_output and ast_analysis["conditions"] > 0
-        bass_synced   = correct_output and ast_analysis["function_presence"]
-        melody_synced = correct_output and not ast_analysis["syntax_error"]
-        score = 0
-        if drum_weight   > 0: score += 30 if drum_synced   else 15
-        if chord_weight  > 0: score += 25 if chord_synced  else 12
-        if bass_weight   > 0: score += 25 if bass_synced   else 12
-        if melody_weight > 0: score += 20 if melody_synced else 10
-        harmony_score = float(min(100, score))
-
-    elif request.level_id == 2:
-        # drums=loops, chords=conditions, bass=no_syntax_error, melody=all_hidden_passed
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 0.0 if ast_analysis["syntax_error"] else 1.0
-        melody_weight = 1.0 if all_hidden_passed else 0.0
-        drum_synced   = drum_weight  > 0 and correct_output
-        chord_synced  = chord_weight > 0 and correct_output
-        bass_synced   = bass_weight  > 0 and correct_output
-        melody_synced = all_hidden_passed
-        score = 0
-        if drum_weight   > 0: score += 25 if drum_synced   else 12
-        if chord_weight  > 0: score += 25 if chord_synced  else 12
-        if bass_weight   > 0: score += 20 if bass_synced   else 10
-        if melody_weight > 0: score += 30 if melody_synced else 0
-        harmony_score = float(min(100, score))
+    # ── GENERIC SCORING ──
+    # If the level provided criteria, use the generic scorer (preferred path).
+    # This is what replaces the old elif level_id == 0/1/2 chain entirely.
+    if request.criteria:
+        criteria_dicts = [c.dict() for c in request.criteria]
+        layers, harmony_score = score_from_criteria(
+            criteria_dicts, ast_analysis, correct_output, all_hidden_passed
+        )
 
     else:
-        melody_weight = 1.0 if all_hidden_passed else 0.0
-        melody_synced = all_hidden_passed
-        drum_synced   = correct_output and ast_analysis["loops"] > 0
-        chord_synced  = correct_output and ast_analysis["conditions"] > 0
-        bass_synced   = correct_output and ast_analysis["function_presence"]
+        # Fallback for any level that hasn't been migrated to criteria yet —
+        # uses the raw ML model prediction directly, unmodified.
+        features = np.array([[
+            ast_analysis["loops"],
+            ast_analysis["conditions"],
+            1 if ast_analysis["function_presence"] else 0,
+            1 if correct_output else 0,
+            ast_analysis["nested_depth"],
+            request.loops_required,
+            request.conditions_required,
+            request.functions_required,
+        ]])
+
+        if harmony_model is not None:
+            prediction    = harmony_model.predict(features)[0]
+            harmony_score = float(np.clip(round(prediction[0]), 0, 100))
+            layers = {
+                "drums":  {"weight": float(np.clip(prediction[1], 0, 1)), "synced": correct_output and ast_analysis["loops"] > 0},
+                "chords": {"weight": float(np.clip(prediction[2], 0, 1)), "synced": correct_output and ast_analysis["conditions"] > 0},
+                "bass":   {"weight": float(np.clip(prediction[3], 0, 1)), "synced": correct_output and ast_analysis["function_presence"]},
+                "melody": {"weight": 1.0 if all_hidden_passed else 0.0,  "synced": all_hidden_passed},
+            }
+        else:
+            harmony_score = 100.0 if correct_output else 30.0
+            layers = {
+                "drums":  {"weight": 1.0 if ast_analysis["loops"] > 0 else 0.0,      "synced": correct_output},
+                "chords": {"weight": 1.0 if ast_analysis["conditions"] > 0 else 0.0, "synced": correct_output},
+                "bass":   {"weight": 1.0 if ast_analysis["function_presence"] else 0.0, "synced": correct_output},
+                "melody": {"weight": 0.0, "synced": False},
+            }
 
     return {
         "output": output,
         "harmony_score": harmony_score,
-        "layers": {
-            "drums":  {"weight": drum_weight,   "synced": drum_synced  },
-            "chords": {"weight": chord_weight,  "synced": chord_synced },
-            "bass":   {"weight": bass_weight,   "synced": bass_synced  },
-            "melody": {"weight": melody_weight, "synced": melody_synced},
-        },
+        "layers": layers,
         "analysis": ast_analysis
     }
 
@@ -383,16 +380,11 @@ def analyze_code_ml(request: AnalyzeRequest):
 # ── Code execution ──
 
 def execute_code(code, config):
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=config["suffix"], mode="w", encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=config["suffix"], mode="w", encoding="utf-8") as f:
         f.write(code)
         fname = f.name
     try:
-        r = subprocess.run(
-            [config["runner"], fname],
-            capture_output=True, text=True, timeout=5
-        )
+        r = subprocess.run([config["runner"], fname], capture_output=True, text=True, timeout=5)
         return r.stdout if r.returncode == 0 else r.stderr
     finally:
         if os.path.exists(fname):
@@ -430,8 +422,7 @@ def analyze_python(code):
     return {
         "loops": loops, "conditions": conditions,
         "function_presence": functions > 0, "nested_depth": max_depth[0],
-        "syntax_error": False, "correct_output": False,
-        "error_line": None,
+        "syntax_error": False, "correct_output": False, "error_line": None,
     }
 
 
@@ -441,8 +432,7 @@ def analyze_js(code):
     try:
         result = subprocess.run(
             ["node", JS_ANALYZER_PATH],
-            input=code,
-            capture_output=True, text=True, timeout=5
+            input=code, capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0 and result.stdout:
             data = json.loads(result.stdout)
@@ -461,7 +451,6 @@ def analyze_js(code):
 
 
 def analyze_js_regex(code):
-    import re
     loops      = len(re.findall(r'\b(for|while)\b', code))
     conditions = len(re.findall(r'\bif\b', code))
     functions  = bool(re.search(
