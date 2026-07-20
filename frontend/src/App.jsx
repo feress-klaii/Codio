@@ -25,7 +25,12 @@ function App() {
         />
       )}
       {screen === "level" && selectedLevel !== null && (
+        // key={selectedLevel.id} forces a full remount whenever the level
+        // changes, so component state (code, language, harmony, etc.)
+        // never leaks between levels — even if two levels briefly share
+        // a stale id during a mid-edit, or you jump between levels fast.
         <Level
+          key={selectedLevel.id}
           level={selectedLevel}
           setScreen={setScreen}
         />

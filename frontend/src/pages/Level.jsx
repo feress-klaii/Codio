@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import axios from "axios";
-import { levels } from "../data/levels";
+import { levels, orderedLevels } from "../data/levels";
 import { mockRunCode } from "../utils/Mockrunner";
 import XTerminal from "../components/XTerminal";
 import "./Level.css";
@@ -25,70 +25,12 @@ const LANGUAGES = [
   { key: "javascript", label: "JavaScript", monacoLang: "javascript" },
 ];
 
-// Starter code per language per level
-const STARTER_CODE = {
-  0: {
-    python:     "# Write your code here\n",
-    javascript: "// Write your code here\n",
-  },
-  1: {
-    python:
-`class Solution(object):
-    def isPalindrome(self, x):
-        # Complete this method
-        # Return True if x is a palindrome, False otherwise
-        pass
-
-# Test runner — do not modify
-sol = Solution()
-print(sol.isPalindrome(121))
-print(sol.isPalindrome(-121))
-print(sol.isPalindrome(10))
-`,
-    javascript:
-`var isPalindrome = function(x) {
-    // Complete this function
-    // Return true if x is a palindrome, false otherwise
-};
-
-// Test runner — do not modify
-console.log(isPalindrome(121));
-console.log(isPalindrome(-121));
-console.log(isPalindrome(10));
-`,
-  },
-  2: {
-    python:
-`def sumEven(nums):
-    # Complete this function
-    # Return the sum of all even numbers in nums
-    pass
-
-# Public test runner — do not modify
-print(sumEven([1, 2, 3, 4]))
-print(sumEven([1, 3, 5]))
-print(sumEven([2, 4, 6, 8]))
-`,
-    javascript:
-`var sumEven = function(nums) {
-    // Complete this function
-    // Return the sum of all even numbers in nums
-};
-
-// Public test runner — do not modify
-console.log(sumEven([1, 2, 3, 4]));
-console.log(sumEven([1, 3, 5]));
-console.log(sumEven([2, 4, 6, 8]));
-`,
-  },
-};
-
-const getStarterCode = (levelId, lang) => {
-  if (lang === "javascript") {
-    const lvl = levels.find(l => l.id === levelId);
-    return lvl?.starterCodeJS || STARTER_CODE[levelId]?.javascript || "// Write your code here\n";
-  }
-  return STARTER_CODE[levelId]?.python || levels.find(l => l.id === levelId)?.starterCode || "# Write your code here\n";
+// Starter code and layer display now live entirely in levels.js.
+// This keeps Level.jsx generic — adding a new level never requires
+// touching this file, only adding an entry to levels.js.
+const getStarterCode = (level, lang) => {
+  if (lang === "javascript") return level.starterCodeJS || "// Write your code here\n";
+  return level.starterCode || "# Write your code here\n";
 };
 
 // ── Distortion curve generator for WaveShaperNode ──
@@ -105,7 +47,7 @@ function makeDistortionCurve(amount) {
 }
 
 function Level({ level, setScreen }) {
-  const [code, setCode]                   = useState(() => getStarterCode(level.id, "python"));
+  const [code, setCode]                   = useState(() => getStarterCode(level, "python"));
   const [language, setLanguage]           = useState("python");
   const [langDropdownOpen, setLangOpen]   = useState(false);
   const [loading, setLoading]             = useState(false);
@@ -247,7 +189,7 @@ function Level({ level, setScreen }) {
   // ── Language switch ──
   const switchLanguage = (lang) => {
     setLanguage(lang);
-    setCode(getStarterCode(level.id, lang));
+    setCode(getStarterCode(level, lang));
     setLangOpen(false);
     stopAll();
     clearErrorHighlight();
@@ -296,7 +238,7 @@ function Level({ level, setScreen }) {
 
   // ── Full reset ──
   const resetLevel = () => {
-    setCode(getStarterCode(level.id, "python"));
+    setCode(getStarterCode(level, "python"));
     setLanguage("python");
     stopAll();
     setCompleted(false);
@@ -525,7 +467,6 @@ function Level({ level, setScreen }) {
           conditions_required: level.requiredFeatures.includes("conditions") ? 1 : 0,
           functions_required:  level.requiredFeatures.includes("functions")  ? 1 : 0,
           test_runner:         "",
-          criteria:            level.criteria || null, // ← generic scoring config
         });
 
         const data    = res.data;
@@ -566,29 +507,18 @@ function Level({ level, setScreen }) {
   };
 
   const currentLang   = LANGUAGES.find(l => l.key === language);
-  const nextLevel     = levels.find(l => l.id === level.id + 1);
+  const displayIndex  = orderedLevels.findIndex(l => l.id === level.id);
+  const nextLevel     = orderedLevels[displayIndex + 1] || null;
   const layerKeys     = ["drums","chords","bass","melody"].filter(k => level.layers[k] !== null);
 
-  const LAYER_DISPLAY = level.id === 0
-    ? {
-        drums:  { label: "DRUMS",  desc: "Rhythm",         color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "Harmony",        color: "var(--accent-green)"  },
-      }
-    : level.id === 2
-    ? {
-        drums:  { label: "DRUMS",  desc: "Iteration",      color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
-      }
-    : {
-        drums:  { label: "DRUMS",  desc: "Precision",      color: "var(--accent-cyan)"   },
-        chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
-        bass:   { label: "BASS",   desc: "Structure",      color: "var(--accent-pink)"   },
-        melody: { label: "MELODY", desc: "Clarity",        color: "var(--accent-green)"  },
-      };
+  // Layer labels/descriptions come straight from levels.js now —
+  // no per-level id branching needed here anymore.
+  const LAYER_DISPLAY = level.layerDisplay || {
+    drums:  { label: "DRUMS",  desc: "Rhythm",   color: "var(--accent-cyan)"   },
+    chords: { label: "CHORDS", desc: "Clarity",  color: "var(--accent-purple)" },
+    bass:   { label: "BASS",   desc: "Precision",color: "var(--accent-pink)"   },
+    melody: { label: "MELODY", desc: "Harmony",  color: "var(--accent-green)" },
+  };
 
   return (
     <div className={`level-screen scanlines ${completionFlash ? "completion-flash" : ""}`}>
@@ -599,7 +529,7 @@ function Level({ level, setScreen }) {
           ← LEVELS
         </button>
         <div className="level-topbar-title">
-          <span className="level-topbar-id">LEVEL_{String(level.id).padStart(2, "0")}</span>
+          <span className="level-topbar-id">LEVEL_{String(displayIndex).padStart(2, "0")}</span>
           <h2 className="level-topbar-name">{level.title}</h2>
         </div>
         <div className="harmony-meter">
@@ -676,7 +606,7 @@ function Level({ level, setScreen }) {
               </div>
             </div>
             <Editor
-              height={level.id === 0 ? "360px" : "380px"}
+              height={level.editorHeight || "380px"}
               language={currentLang.monacoLang}
               theme="vs-dark"
               value={code}

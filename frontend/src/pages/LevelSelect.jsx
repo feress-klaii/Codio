@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { levels } from "../data/levels";
+import { orderedLevels } from "../data/levels";
 import "./LevelSelect.css";
 
-// Level 0 is always accessible.
-// All other levels require password every session — never saved.
-const ALWAYS_UNLOCKED = [0];
+// Level 0 (tutorial) is always accessible.
+// All other levels require a password every session — never saved.
+const ALWAYS_UNLOCKED_IDS = [0];
 
 function LevelSelect({ setScreen, goToLevel }) {
   const [passwordInputs, setPasswordInputs] = useState({});
   const [errors, setErrors]                 = useState({});
-  const [sessionUnlocked, setSessionUnlocked] = useState([...ALWAYS_UNLOCKED]);
+  const [sessionUnlocked, setSessionUnlocked] = useState([...ALWAYS_UNLOCKED_IDS]);
   const [justUnlocked, setJustUnlocked]     = useState(null);
 
   const handlePasswordSubmit = (level) => {
@@ -44,13 +44,13 @@ function LevelSelect({ setScreen, goToLevel }) {
             <h2 className="ls-title">MISSION SELECT</h2>
           </div>
           <div className="ls-status">
-            <span>{sessionUnlocked.length} / {levels.length} UNLOCKED</span>
+            <span>{sessionUnlocked.length} / {orderedLevels.length} UNLOCKED</span>
           </div>
         </div>
 
-        {/* LEVELS LIST */}
+        {/* LEVELS LIST — always rendered in `order` sequence, never raw array/id order */}
         <div className="ls-levels">
-          {levels.map((level) => {
+          {orderedLevels.map((level, index) => {
             const isUnlocked = sessionUnlocked.includes(level.id);
             const isNew      = justUnlocked === level.id;
 
@@ -61,7 +61,9 @@ function LevelSelect({ setScreen, goToLevel }) {
               >
                 <div className="level-card-left">
                   <div className="level-id">
-                    <span className="level-num">{String(level.id).padStart(2, "0")}</span>
+                    {/* Badge shows POSITION in the sequence, not the permanent id —
+                        so inserting/reordering levels never produces a confusing badge number */}
+                    <span className="level-num">{String(index).padStart(2, "0")}</span>
                     <span className="level-status-dot" />
                   </div>
                   <div className="level-info">
@@ -80,10 +82,7 @@ function LevelSelect({ setScreen, goToLevel }) {
 
                 <div className="level-card-right">
                   {isUnlocked ? (
-                    <button
-                      className="btn btn-green"
-                      onClick={() => goToLevel(level)}
-                    >
+                    <button className="btn btn-green" onClick={() => goToLevel(level)}>
                       ENTER →
                     </button>
                   ) : (
@@ -97,28 +96,16 @@ function LevelSelect({ setScreen, goToLevel }) {
                           placeholder="PASSWORD_"
                           value={passwordInputs[level.id] || ""}
                           onChange={(e) =>
-                            setPasswordInputs((prev) => ({
-                              ...prev,
-                              [level.id]: e.target.value,
-                            }))
+                            setPasswordInputs((prev) => ({ ...prev, [level.id]: e.target.value }))
                           }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handlePasswordSubmit(level);
-                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") handlePasswordSubmit(level); }}
                         />
-                        <button
-                          className="btn btn-purple"
-                          onClick={() => handlePasswordSubmit(level)}
-                        >
+                        <button className="btn btn-purple" onClick={() => handlePasswordSubmit(level)}>
                           UNLOCK
                         </button>
                       </div>
-                      {errors[level.id] && (
-                        <p className="lock-error">{errors[level.id]}</p>
-                      )}
-                      {isNew && (
-                        <p className="lock-success">ACCESS GRANTED ✓</p>
-                      )}
+                      {errors[level.id] && <p className="lock-error">{errors[level.id]}</p>}
+                      {isNew && <p className="lock-success">ACCESS GRANTED ✓</p>}
                     </div>
                   )}
                 </div>
@@ -127,7 +114,6 @@ function LevelSelect({ setScreen, goToLevel }) {
           })}
         </div>
 
-        {/* FOOTER */}
         <div className="ls-footer">
           <span className="ls-footer-note">
             Complete a level to receive the song name — that name is the password for the next level.
