@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional
 import subprocess
 import tempfile
 import os
@@ -19,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Load ML model ──
+# ── Load ML model (fallback path only — criteria-based levels don't need it) ──
 MODEL_PATH = "harmony_model.pkl"
 try:
     harmony_model = joblib.load(MODEL_PATH)
@@ -30,7 +31,7 @@ except FileNotFoundError:
 
 JS_ANALYZER_PATH = os.path.join(os.path.dirname(__file__), "analyze_js.js")
 
-# ── Blocked imports (security) ──
+# ── Security: blocked imports ──
 BLOCKED_IMPORTS = {
     "os", "sys", "subprocess", "shutil", "socket",
     "requests", "urllib", "http", "ftplib", "smtplib",
@@ -40,18 +41,93 @@ BLOCKED_IMPORTS = {
     "atexit", "gc", "inspect", "pdb", "traceback",
 }
 
-# ── Hidden test cases per level ──
-HIDDEN_TESTS = {
-    2: [
-        {"input": [],            "expected": 0  },
-        {"input": [-2, -4, 1],  "expected": -6 },
-        {"input": [0, 1, 2],    "expected": 2  },
-        {"input": [100, 99],    "expected": 100},
-        {"input": [7, 13, 21],  "expected": 0  },
-        {"input": [2, 2, 2],    "expected": 6  },
-        {"input": [-1,-2,-3,-4],"expected": -6 },
-    ]
+# ═══════════════════════════════════════════════════════════════════════════
+# HIDDEN TESTS — server-side ONLY, authoritative.
+#
+# IMPORTANT: even though levels.js has a matching `hiddenTests`/`callTemplate`
+# field for documentation, the frontend NEVER sends these to the backend and
+# this dict is never influenced by the request body. If it were client-
+# supplied, anyone could fake `all_hidden_passed: true` by editing the network
+# request. The only thing the client controls is which level_id is being
+# played — the actual test data always comes from here.
+#
+# `callTemplate` is a dict keyed by language, since the same problem can have
+# a different calling shape per language (e.g. a Python class method vs a
+# plain JS function). `tests` (args/expected) is shared across languages —
+# the underlying problem is identical, only the call syntax differs.
+#
+# "{args}" is a placeholder substituted with the comma-joined, language-safe
+# literal representation of each test's positional arguments.
+# ═══════════════════════════════════════════════════════════════════════════
+
+LEVEL_HIDDEN_TESTS = {
+    1: {  # Data Echoes — formatReport
+        "callTemplate": {
+            "python":     "formatReport({args})",
+            "javascript": "formatReport({args})",
+        },
+        "tests": [
+            {"args": ["Zoe", 45, 60],   "expected": "Name: Zoe, Age: 45, Score: 60.00"},
+            {"args": ["Max", 8, 99.99], "expected": "Name: Max, Age: 8, Score: 99.99"},
+            {"args": ["Ivy", 100, 0],   "expected": "Name: Ivy, Age: 100, Score: 0.00"},
+        ],
+    },
+    2: {  # Even Frequency — sumEven
+        "callTemplate": {
+            "python":     "sumEven({args})",
+            "javascript": "sumEven({args})",
+        },
+        "tests": [
+            {"args": [[]],               "expected": 0},
+            {"args": [[-2, -4, 1]],      "expected": -6},
+            {"args": [[0, 1, 2]],        "expected": 2},
+            {"args": [[100, 99]],        "expected": 100},
+            {"args": [[7, 13, 21]],      "expected": 0},
+            {"args": [[2, 2, 2]],        "expected": 6},
+            {"args": [[-1, -2, -3, -4]], "expected": -6},
+        ],
+    },
+    3: {  # Mirror Logic — isPalindrome
+        "callTemplate": {
+            "python":     "Solution().isPalindrome({args})",
+            "javascript": "isPalindrome({args})",
+        },
+        "tests": [
+            {"args": [12321], "expected": True},
+            {"args": [123],   "expected": False},
+            {"args": [0],     "expected": True},
+            {"args": [-5],    "expected": False},
+            {"args": [1],     "expected": True},
+        ],
+    },
+    4: {  # Positive Squares — filterSquares
+        "callTemplate": {
+            "python":     "filterSquares({args})",
+            "javascript": "filterSquares({args})",
+        },
+        "tests": [
+            {"args": [[3, -3, 0, 9]],   "expected": [9, 81]},
+            {"args": [[]],              "expected": []},
+            {"args": [[-5, -10]],       "expected": []},
+            {"args": [[7]],             "expected": [49]},
+            {"args": [[1, 2, 3, 4, 5]], "expected": [1, 4, 9, 16, 25]},
+        ],
+    },
+    5: {  # Signal Memory — uniqueValues
+        "callTemplate": {
+            "python":     "uniqueValues({args})",
+            "javascript": "uniqueValues({args})",
+        },
+        "tests": [
+            {"args": [[9, 9, 8, 7, 8, 9]],  "expected": [9, 8, 7]},
+            {"args": [[1, 1, 1, 1]],        "expected": [1]},
+            {"args": [[]],                  "expected": []},
+            {"args": [[4, 3, 2, 1]],        "expected": [4, 3, 2, 1]},
+            {"args": [[0, 0, -1, -1, 2]],   "expected": [0, -1, 2]},
+        ],
+    },
 }
+
 
 # ── Request models ──
 
@@ -59,6 +135,11 @@ class CodeRequest(BaseModel):
     code: str
     language: str = "python"
     expected_output: str = ""
+
+class Criterion(BaseModel):
+    key: str      # loops | conditions | functions | no_syntax_error | correct_output | all_hidden_passed
+    layer: str    # drums | chords | bass | melody
+    weight: float
 
 class AnalyzeRequest(BaseModel):
     code: str
@@ -69,6 +150,7 @@ class AnalyzeRequest(BaseModel):
     functions_required: int = 0
     test_runner: str = ""
     level_id: int = 0
+    criteria: Optional[List[Criterion]] = None
 
 LANGUAGE_CONFIG = {
     "python":     {"runner": "python", "suffix": ".py",  "use_ast": True},
@@ -76,105 +158,155 @@ LANGUAGE_CONFIG = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# GENERIC CRITERIA-BASED SCORER
+# ═══════════════════════════════════════════════════════════════════════════
+
+def evaluate_criterion(key: str, analysis: dict, correct_output: bool, all_hidden_passed: bool) -> bool:
+    if key == "loops":
+        return analysis.get("loops", 0) > 0
+    if key == "conditions":
+        return analysis.get("conditions", 0) > 0
+    if key == "functions":
+        return bool(analysis.get("function_presence", False))
+    if key == "no_syntax_error":
+        return not analysis.get("syntax_error", False)
+    if key == "correct_output":
+        return correct_output
+    if key == "all_hidden_passed":
+        return all_hidden_passed
+    return False
+
+
+def score_from_criteria(criteria: list, analysis: dict, correct_output: bool, all_hidden_passed: bool):
+    layers = {
+        "drums":  {"weight": 0.0, "synced": False},
+        "chords": {"weight": 0.0, "synced": False},
+        "bass":   {"weight": 0.0, "synced": False},
+        "melody": {"weight": 0.0, "synced": False},
+    }
+    score = 0.0
+    max_score = 0.0
+
+    for c in criteria:
+        key, layer, weight = c["key"], c["layer"], c["weight"]
+        max_score += weight
+        satisfied = evaluate_criterion(key, analysis, correct_output, all_hidden_passed)
+        if layer in layers:
+            layers[layer]["weight"] = 1.0 if satisfied else 0.0
+            layers[layer]["synced"] = satisfied and correct_output
+        if satisfied:
+            score += weight
+
+    harmony_score = (score / max_score * 100) if max_score > 0 else 0.0
+    return layers, float(min(100, round(harmony_score)))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# GENERIC HIDDEN TEST RUNNER — Python AND JavaScript
+#
+# Any function/class-method-based level just needs a LEVEL_HIDDEN_TESTS
+# entry with a callTemplate per language above — zero new code required
+# here to support a new level, in either language.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _run_test_script(script: str, suffix: str, runner: str) -> bool:
+    """Shared subprocess execution for both Python and JS hidden test scripts."""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode="w", encoding="utf-8") as f:
+            f.write(script)
+            fname = f.name
+        result = subprocess.run([runner, fname], capture_output=True, text=True, timeout=5)
+        os.unlink(fname)
+
+        if result.returncode != 0:
+            return False
+
+        out_lines = result.stdout.strip().split("\n")
+        results   = [l.strip() for l in out_lines if l.strip() in ("HIDDEN_PASS", "HIDDEN_FAIL")]
+        return len(results) > 0 and all(r == "HIDDEN_PASS" for r in results)
+
+    except Exception:
+        return False
+
+
+def run_hidden_tests(user_code: str, level_id: int, language: str = "python") -> bool:
+    config = LEVEL_HIDDEN_TESTS.get(level_id)
+    if not config:
+        # No hidden tests defined for this level — treat as passed
+        # (e.g. Level 0, which is structurally cheat-resistant via the
+        # `loops` criterion requiring a real AST loop node to exist).
+        return True
+
+    lang          = language if language in ("python", "javascript") else "python"
+    call_template = config["callTemplate"].get(lang)
+    tests         = config["tests"]
+
+    if not call_template:
+        # This level doesn't define a hidden-test call template for this
+        # language yet — fail safe rather than silently granting a pass.
+        return False
+
+    if lang == "python":
+        lines = [user_code, ""]
+        for i, t in enumerate(tests):
+            # repr() produces valid Python source for str/int/float/bool/list/None
+            args_literal     = ", ".join(repr(a) for a in t["args"])
+            call_expr        = call_template.replace("{args}", args_literal)
+            expected_literal = repr(t["expected"])
+            lines.append(f'_r{i} = {call_expr}')
+            lines.append(f'print("HIDDEN_PASS" if _r{i} == {expected_literal} else "HIDDEN_FAIL")')
+        test_code = "\n".join(lines)
+        return _run_test_script(test_code, ".py", "python")
+
+    else:  # javascript
+        lines = [user_code, ""]
+        for i, t in enumerate(tests):
+            # json.dumps produces valid JS literal syntax for str/int/float/
+            # bool/list/None (true/false/null lowercase — exactly what JS
+            # needs, unlike Python's repr() which gives True/False/None).
+            args_literal      = ", ".join(json.dumps(a) for a in t["args"])
+            call_expr         = call_template.replace("{args}", args_literal)
+            expected_literal  = json.dumps(t["expected"])
+            lines.append(f'var _r{i} = {call_expr};')
+            lines.append(
+                f'console.log(JSON.stringify(_r{i}) === JSON.stringify({expected_literal}) ? "HIDDEN_PASS" : "HIDDEN_FAIL");'
+            )
+        test_code = "\n".join(lines)
+        return _run_test_script(test_code, ".js", "node")
+
+
 # ── Security: scan for blocked imports ──
 
-def check_blocked_imports(code: str) -> str | None:
-    """
-    Returns the name of the first blocked import found,
-    or None if the code is safe.
-    """
+def check_blocked_imports(code: str):
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return None  # syntax errors handled elsewhere
-
+        return None
     for node in ast.walk(tree):
-        # import os / import sys
         if isinstance(node, ast.Import):
             for alias in node.names:
                 base = alias.name.split(".")[0]
                 if base in BLOCKED_IMPORTS:
                     return alias.name
-        # from os import path / from sys import argv
         if isinstance(node, ast.ImportFrom):
             if node.module:
                 base = node.module.split(".")[0]
                 if base in BLOCKED_IMPORTS:
                     return node.module
-
     return None
 
 
 # ── Error line extraction ──
 
-def extract_error_line(error_output: str) -> int | None:
-    """
-    Parses Python/JS error output to find the line number.
-    Python: '  File "...", line 4'
-    JS:     'at Object.<anonymous> (...:16:1)'
-    """
-    # Python format
+def extract_error_line(error_output: str):
     py_match = re.search(r'line (\d+)', error_output)
     if py_match:
         return int(py_match.group(1))
-
-    # JS format: filename:line:col
     js_match = re.search(r':(\d+):\d+\)', error_output)
     if js_match:
         return int(js_match.group(1))
-
     return None
-
-
-# ── Hidden test runner (Python only for now) ──
-
-def run_hidden_tests(user_code: str, level_id: int) -> bool:
-    """
-    Runs hidden test cases for the given level against the user's function.
-    Returns True if all hidden tests pass, False otherwise.
-    Never reveals test cases or results to the user.
-    """
-    tests = HIDDEN_TESTS.get(level_id)
-    if not tests:
-        return True  # no hidden tests for this level
-
-    if level_id == 2:
-        # Build a test script that imports the user's function
-        # and runs all hidden cases, printing PASS/FAIL
-        test_lines = [user_code, "\n"]
-        for i, test in enumerate(tests):
-            inp = json.dumps(test["input"])
-            exp = test["expected"]
-            test_lines.append(
-                f'_r{i} = sumEven({inp})\n'
-                f'print("HIDDEN_PASS" if _r{i} == {exp} else "HIDDEN_FAIL")\n'
-            )
-        test_code = "\n".join(test_lines)
-
-        try:
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=".py", mode="w", encoding="utf-8"
-            ) as f:
-                f.write(test_code)
-                fname = f.name
-
-            result = subprocess.run(
-                ["python", fname],
-                capture_output=True, text=True, timeout=5
-            )
-            os.unlink(fname)
-
-            if result.returncode != 0:
-                return False
-
-            lines = result.stdout.strip().split("\n")
-            results = [l.strip() for l in lines if l.strip() in ("HIDDEN_PASS", "HIDDEN_FAIL")]
-            return len(results) == len(tests) and all(r == "HIDDEN_PASS" for r in results)
-
-        except Exception:
-            return False
-
-    return True
 
 
 # ── /run-code ──
@@ -185,7 +317,6 @@ def run_code(request: CodeRequest):
     config = LANGUAGE_CONFIG.get(lang, LANGUAGE_CONFIG["python"])
     code   = request.code
 
-    # Security check
     if config["use_ast"]:
         blocked = check_blocked_imports(code)
         if blocked:
@@ -223,7 +354,6 @@ def analyze_code_ml(request: AnalyzeRequest):
     code      = request.code
     full_code = code + "\n\n" + request.test_runner if request.test_runner.strip() else code
 
-    # Security check
     if config["use_ast"]:
         blocked = check_blocked_imports(code)
         if blocked:
@@ -243,7 +373,6 @@ def analyze_code_ml(request: AnalyzeRequest):
                 }
             }
 
-    # AST analysis
     ast_analysis = analyze_python(code) if config["use_ast"] else analyze_js(code)
 
     if config["use_ast"] and ast_analysis["syntax_error"]:
@@ -259,7 +388,6 @@ def analyze_code_ml(request: AnalyzeRequest):
             "analysis": {**ast_analysis, "error_line": ast_analysis.get("error_line"), "all_hidden_passed": False}
         }
 
-    # Execute public test runner
     output         = ""
     correct_output = False
     error_line     = None
@@ -273,109 +401,54 @@ def analyze_code_ml(request: AnalyzeRequest):
     except Exception as e:
         output = str(e)
 
-    # Run hidden tests (only if public tests pass, to save time)
-    all_hidden_passed = False
-    if correct_output and request.level_id in HIDDEN_TESTS:
-        all_hidden_passed = run_hidden_tests(code, request.level_id)
-    elif request.level_id not in HIDDEN_TESTS:
-        all_hidden_passed = True  # no hidden tests for this level
+    # ── Hidden tests — now generic across Python AND JavaScript ──
+    all_hidden_passed = True
+    if request.level_id in LEVEL_HIDDEN_TESTS:
+        all_hidden_passed = correct_output and run_hidden_tests(code, request.level_id, lang)
 
     ast_analysis["correct_output"]    = correct_output
     ast_analysis["error_line"]        = error_line
     ast_analysis["all_hidden_passed"] = all_hidden_passed
 
-    # ML prediction
-    features = np.array([[
-        ast_analysis["loops"],
-        ast_analysis["conditions"],
-        1 if ast_analysis["function_presence"] else 0,
-        1 if correct_output else 0,
-        ast_analysis["nested_depth"],
-        request.loops_required,
-        request.conditions_required,
-        request.functions_required,
-    ]])
-
-    if harmony_model is not None:
-        prediction    = harmony_model.predict(features)[0]
-        harmony_score = float(np.clip(round(prediction[0]), 0, 100))
-        drum_weight   = float(np.clip(prediction[1], 0.0, 1.0))
-        chord_weight  = float(np.clip(prediction[2], 0.0, 1.0))
-        bass_weight   = float(np.clip(prediction[3], 0.0, 1.0))
+    # ── Generic scoring ──
+    if request.criteria:
+        criteria_dicts = [c.dict() for c in request.criteria]
+        layers, harmony_score = score_from_criteria(
+            criteria_dicts, ast_analysis, correct_output, all_hidden_passed
+        )
     else:
-        harmony_score = 100.0 if correct_output else 30.0
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
-
-    # ── Level-aware layer mapping ──
-
-    if request.level_id == 0:
-        # drums=loops, chords=no_syntax_error, bass=correct_output
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 0.0 if ast_analysis["syntax_error"] else 1.0
-        bass_weight   = 1.0 if correct_output else 0.0
-        melody_weight = 0.0
-        drum_synced   = drum_weight  > 0 and correct_output
-        chord_synced  = chord_weight > 0 and correct_output
-        bass_synced   = correct_output
-        melody_synced = False
-        score = 0
-        if drum_weight  > 0: score += 35 if drum_synced  else 20
-        if chord_weight > 0: score += 35 if chord_synced else 20
-        if bass_weight  > 0: score += 30
-        harmony_score = float(min(100, score))
-
-    elif request.level_id == 1:
-        # drums=correct_output, chords=conditions, bass=functions, melody=no_syntax_error
-        drum_weight   = 1.0 if correct_output else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 1.0 if ast_analysis["function_presence"] else 0.0
-        melody_weight = 0.0 if ast_analysis["syntax_error"] else 1.0
-        drum_synced   = correct_output
-        chord_synced  = correct_output and ast_analysis["conditions"] > 0
-        bass_synced   = correct_output and ast_analysis["function_presence"]
-        melody_synced = correct_output and not ast_analysis["syntax_error"]
-        score = 0
-        if drum_weight   > 0: score += 30 if drum_synced   else 15
-        if chord_weight  > 0: score += 25 if chord_synced  else 12
-        if bass_weight   > 0: score += 25 if bass_synced   else 12
-        if melody_weight > 0: score += 20 if melody_synced else 10
-        harmony_score = float(min(100, score))
-
-    elif request.level_id == 2:
-        # drums=loops, chords=conditions, bass=no_syntax_error, melody=all_hidden_passed
-        drum_weight   = 1.0 if ast_analysis["loops"] > 0 else 0.0
-        chord_weight  = 1.0 if ast_analysis["conditions"] > 0 else 0.0
-        bass_weight   = 0.0 if ast_analysis["syntax_error"] else 1.0
-        melody_weight = 1.0 if all_hidden_passed else 0.0
-        drum_synced   = drum_weight  > 0 and correct_output
-        chord_synced  = chord_weight > 0 and correct_output
-        bass_synced   = bass_weight  > 0 and correct_output
-        melody_synced = all_hidden_passed
-        score = 0
-        if drum_weight   > 0: score += 25 if drum_synced   else 12
-        if chord_weight  > 0: score += 25 if chord_synced  else 12
-        if bass_weight   > 0: score += 20 if bass_synced   else 10
-        if melody_weight > 0: score += 30 if melody_synced else 0
-        harmony_score = float(min(100, score))
-
-    else:
-        melody_weight = 1.0 if all_hidden_passed else 0.0
-        melody_synced = all_hidden_passed
-        drum_synced   = correct_output and ast_analysis["loops"] > 0
-        chord_synced  = correct_output and ast_analysis["conditions"] > 0
-        bass_synced   = correct_output and ast_analysis["function_presence"]
+        features = np.array([[
+            ast_analysis["loops"],
+            ast_analysis["conditions"],
+            1 if ast_analysis["function_presence"] else 0,
+            1 if correct_output else 0,
+            ast_analysis["nested_depth"],
+            request.loops_required,
+            request.conditions_required,
+            request.functions_required,
+        ]])
+        if harmony_model is not None:
+            prediction    = harmony_model.predict(features)[0]
+            harmony_score = float(np.clip(round(prediction[0]), 0, 100))
+            layers = {
+                "drums":  {"weight": float(np.clip(prediction[1], 0, 1)), "synced": correct_output and ast_analysis["loops"] > 0},
+                "chords": {"weight": float(np.clip(prediction[2], 0, 1)), "synced": correct_output and ast_analysis["conditions"] > 0},
+                "bass":   {"weight": float(np.clip(prediction[3], 0, 1)), "synced": correct_output and ast_analysis["function_presence"]},
+                "melody": {"weight": 1.0 if all_hidden_passed else 0.0,  "synced": all_hidden_passed},
+            }
+        else:
+            harmony_score = 100.0 if correct_output else 30.0
+            layers = {
+                "drums":  {"weight": 1.0 if ast_analysis["loops"] > 0 else 0.0,      "synced": correct_output},
+                "chords": {"weight": 1.0 if ast_analysis["conditions"] > 0 else 0.0, "synced": correct_output},
+                "bass":   {"weight": 1.0 if ast_analysis["function_presence"] else 0.0, "synced": correct_output},
+                "melody": {"weight": 0.0, "synced": False},
+            }
 
     return {
         "output": output,
         "harmony_score": harmony_score,
-        "layers": {
-            "drums":  {"weight": drum_weight,   "synced": drum_synced  },
-            "chords": {"weight": chord_weight,  "synced": chord_synced },
-            "bass":   {"weight": bass_weight,   "synced": bass_synced  },
-            "melody": {"weight": melody_weight, "synced": melody_synced},
-        },
+        "layers": layers,
         "analysis": ast_analysis
     }
 
@@ -383,16 +456,11 @@ def analyze_code_ml(request: AnalyzeRequest):
 # ── Code execution ──
 
 def execute_code(code, config):
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=config["suffix"], mode="w", encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=config["suffix"], mode="w", encoding="utf-8") as f:
         f.write(code)
         fname = f.name
     try:
-        r = subprocess.run(
-            [config["runner"], fname],
-            capture_output=True, text=True, timeout=5
-        )
+        r = subprocess.run([config["runner"], fname], capture_output=True, text=True, timeout=5)
         return r.stdout if r.returncode == 0 else r.stderr
     finally:
         if os.path.exists(fname):
@@ -423,6 +491,16 @@ def analyze_python(code):
             conditions += 1
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             functions += 1
+        elif isinstance(node, ast.comprehension):
+            # List/set/dict comprehensions and generator expressions use
+            # `ast.comprehension` nodes for their "for" clause, NOT ast.For —
+            # and their filter conditions live in `.ifs`, NOT ast.If. Without
+            # this, an idiomatic comprehension solution would score zero on
+            # loops/conditions despite being fully correct — this closes
+            # that gap so comprehension-style solutions are counted fairly,
+            # same as explicit for/if versions of the same logic.
+            loops += 1
+            conditions += len(node.ifs)
         for child in ast.iter_child_nodes(node):
             visit(child, depth + 1)
 
@@ -430,8 +508,7 @@ def analyze_python(code):
     return {
         "loops": loops, "conditions": conditions,
         "function_presence": functions > 0, "nested_depth": max_depth[0],
-        "syntax_error": False, "correct_output": False,
-        "error_line": None,
+        "syntax_error": False, "correct_output": False, "error_line": None,
     }
 
 
@@ -441,8 +518,7 @@ def analyze_js(code):
     try:
         result = subprocess.run(
             ["node", JS_ANALYZER_PATH],
-            input=code,
-            capture_output=True, text=True, timeout=5
+            input=code, capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0 and result.stdout:
             data = json.loads(result.stdout)
@@ -461,7 +537,6 @@ def analyze_js(code):
 
 
 def analyze_js_regex(code):
-    import re
     loops      = len(re.findall(r'\b(for|while)\b', code))
     conditions = len(re.findall(r'\bif\b', code))
     functions  = bool(re.search(

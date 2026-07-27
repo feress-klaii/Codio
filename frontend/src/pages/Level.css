@@ -718,3 +718,45 @@
 .lang-arrow {
   font-size: 10px !important;
 }
+.challenge-label,
+.challenge-text {
+  text-align: center;
+}
+ 
+.challenge-hint-box {
+  justify-content: center;
+  text-align: center;
+}
+ 
+.hint-reveal-btn {
+  margin-left: auto;
+  margin-right: auto;
+}
+ 
+.reference-label,
+.reference-desc {
+  text-align: center;
+}
+ 
+.music-panel-label {
+  text-align: center;
+}
+ 
+.terminal-label {
+  text-align: center;
+}
+ 
+.song-reveal-label,
+.song-reveal-score,
+.song-reveal-desc,
+.song-name-label,
+.song-name-hint {
+  text-align: center;
+}
+ 
+.editor-label {
+  /* stays left-aligned deliberately — this is a file-path style label,
+     not prose, and reads more naturally flush left next to the language
+     dropdown on the right */
+  text-align: left;
+}

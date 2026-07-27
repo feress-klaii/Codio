@@ -1,6 +1,9 @@
+
+
 export const levels = [
   {
     id: 0,
+    order: 0,
     title: "Level 0 — The First Beat",
     locked: false,
     password: null,
@@ -15,6 +18,19 @@ export const levels = [
     songName: "THE BEGINNING",
     requiredFeatures: ["loops"],
     hint: "Try using a for loop with range().",
+    editorHeight: "360px",
+    criteria: [
+      { key: "loops",           layer: "drums",  weight: 35 },
+      { key: "no_syntax_error", layer: "chords", weight: 35 },
+      { key: "correct_output",  layer: "bass",   weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Rhythm",    color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",   color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision", color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "Harmony",   color: "var(--accent-green)"  },
+    },
+    // ── Audio paths preserved exactly as they are in production ──
     layers: {
       drums:  { src: "/audio/drums0.mp3",  broken: true },
       chords: { src: "/audio/chords0.mp3", broken: true },
@@ -22,11 +38,90 @@ export const levels = [
       melody: null,
     },
   },
+
   {
     id: 1,
-    title: "Level 1 — Mirror Logic",
+    order: 10,
+    title: "Level — Data Echoes",
     locked: true,
     password: "THE BEGINNING",
+    challenge: "Complete the formatReport function.\n\nGiven a name (string), age (integer), and score (float), return a formatted report string with the score shown to exactly 2 decimal places.",
+    examples: [
+      { input: 'formatReport("Alice", 30, 92.5)', output: "Name: Alice, Age: 30, Score: 92.50" },
+      { input: 'formatReport("Bob", 22, 75)',     output: "Name: Bob, Age: 22, Score: 75.00"   },
+      { input: 'formatReport("Cy", 19, 100)',     output: "Name: Cy, Age: 19, Score: 100.00"   },
+    ],
+    description: "Every value has a voice — string, number, decimal. Learn to make them speak in one line.",
+    type: "complete",
+    starterCode:
+`def formatReport(name, age, score):
+    # Complete this function
+    # Return: "Name: {name}, Age: {age}, Score: {score with 2 decimal places}"
+    pass
+
+# Public test runner — do not modify
+print(formatReport("Alice", 30, 92.5))
+print(formatReport("Bob", 22, 75))
+print(formatReport("Cy", 19, 100))
+`,
+    starterCodeJS:
+`/**
+ * @param {string} name
+ * @param {number} age
+ * @param {number} score
+ * @return {string}
+ */
+var formatReport = function(name, age, score) {
+    // Complete this function
+    // Return: "Name: {name}, Age: {age}, Score: {score with 2 decimal places}"
+};
+
+// Public test runner — do not modify
+console.log(formatReport("Alice", 30, 92.5));
+console.log(formatReport("Bob", 22, 75));
+console.log(formatReport("Cy", 19, 100));
+`,
+    expectedOutput:   "Name: Alice, Age: 30, Score: 92.50\nName: Bob, Age: 22, Score: 75.00\nName: Cy, Age: 19, Score: 100.00",
+    expectedOutputJS: "Name: Alice, Age: 30, Score: 92.50\nName: Bob, Age: 22, Score: 75.00\nName: Cy, Age: 19, Score: 100.00",
+    songName: "TBD",
+    requiredFeatures: ["functions"],
+    hint: "Use an f-string in Python (f\"...{value:.2f}\") or toFixed(2) in JavaScript to format the score.",
+    editorHeight: "380px",
+    callTemplate: "formatReport({args})",
+    hiddenTests: [
+      { args: ["Zoe", 45, 60],    expected: "Name: Zoe, Age: 45, Score: 60.00" },
+      { args: ["Max", 8, 99.99], expected: "Name: Max, Age: 8, Score: 99.99"   },
+      { args: ["Ivy", 100, 0],   expected: "Name: Ivy, Age: 100, Score: 0.00"  },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    // ⚠ PLACEHOLDER — no real audio provided for this level yet.
+    // Swap these paths once you have the actual files; naming isn't tied
+    // to `id`, so any filenames work here.
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_data_echoes_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_data_echoes_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_data_echoes_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_data_echoes_melody.mp3", broken: true },
+    },
+  },
+
+  {
+    id: 3,
+    order: 20,
+    title: "Level — Mirror Logic",
+    locked: true,
+    password: "TBD", // ← update once Data Echoes' songName is picked
     challenge: "Given an integer x, return True if x is a palindrome, False otherwise.",
     examples: [
       { input: "isPalindrome(121)",  output: "True"  },
@@ -68,6 +163,28 @@ console.log(isPalindrome(10));
     songName: "16 PUNKS",
     requiredFeatures: ["functions", "conditions"],
     hint: "Convert x to a string and compare it to its reverse. Negative numbers are never palindromes.",
+    editorHeight: "380px",
+    callTemplate: "Solution().isPalindrome({args})",
+    hiddenTests: [
+      { args: [12321], expected: true  },
+      { args: [123],   expected: false },
+      { args: [0],     expected: true  },
+      { args: [-5],    expected: false },
+      { args: [1],     expected: true  },
+    ],
+    criteria: [
+      { key: "all_hidden_passed", layer: "drums",  weight: 30 },
+      { key: "conditions",        layer: "chords", weight: 25 },
+      { key: "functions",         layer: "bass",   weight: 25 },
+      { key: "no_syntax_error",   layer: "melody", weight: 20 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Precision", color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Logic",      color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Structure",  color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "Clarity",    color: "var(--accent-green)"  },
+    },
+    // ── Audio paths preserved exactly as they are in production ──
     layers: {
       drums:  { src: "/audio/drums11.mp3",  broken: true },
       chords: { src: "/audio/chords11.mp3", broken: true },
@@ -75,9 +192,11 @@ console.log(isPalindrome(10));
       melody: { src: "/audio/melody11.mp3", broken: true },
     },
   },
+
   {
     id: 2,
-    title: "Level 2 — Even Frequency",
+    order: 30,
+    title: "Level — Even Frequency",
     locked: true,
     password: "16 PUNKS",
     challenge: "Complete the sumEven function.\n\nGiven a list of integers, return the sum of all even numbers in it.",
@@ -116,19 +235,34 @@ console.log(sumEven([2, 4, 6, 8]));
 `,
     expectedOutput:   "6\n0\n20",
     expectedOutputJS: "6\n0\n20",
-    // Hidden test cases — validated server-side only, never shown to user
-    hiddenTests: [
-      { input: [],           expected: 0   },
-      { input: [-2, -4, 1], expected: -6  },
-      { input: [0, 1, 2],   expected: 2   },
-      { input: [100, 99],   expected: 100 },
-      { input: [7, 13, 21], expected: 0   },
-      { input: [2, 2, 2],   expected: 6   },
-      { input: [-1, -2, -3, -4], expected: -6 },
-    ],
+    // ── Preserved exactly: this is your real song name, NOT "NEON TOMORROW" ──
     songName: "Static Tomorrow",
     requiredFeatures: ["loops", "conditions"],
     hint: "Loop through the list and check if each number is divisible by 2 using the % operator.",
+    editorHeight: "380px",
+    callTemplate: "sumEven({args})",
+    hiddenTests: [
+      { args: [[]],               expected: 0   },
+      { args: [[-2, -4, 1]],     expected: -6  },
+      { args: [[0, 1, 2]],       expected: 2   },
+      { args: [[100, 99]],       expected: 100 },
+      { args: [[7, 13, 21]],     expected: 0   },
+      { args: [[2, 2, 2]],       expected: 6   },
+      { args: [[-1, -2, -3, -4]],expected: -6  },
+    ],
+    criteria: [
+      { key: "loops",             layer: "drums",  weight: 25 },
+      { key: "conditions",        layer: "chords", weight: 25 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Iteration",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    // ── Audio paths preserved exactly as they are in production ──
     layers: {
       drums:  { src: "/audio/drums2.mp3",  broken: true },
       chords: { src: "/audio/chords2.mp3", broken: true },
@@ -136,4 +270,163 @@ console.log(sumEven([2, 4, 6, 8]));
       melody: { src: "/audio/melody2.mp3", broken: true },
     },
   },
+
+  {
+    id: 4,
+    order: 40,
+    title: "Level — Positive Squares",
+    locked: true,
+    // ── FIX: this now correctly requires "Static Tomorrow", matching
+    // Even Frequency's real songName above — it previously required
+    // "NEON TOMORROW", which no longer matches anything and would have
+    // permanently locked this level out. ──
+    password: "Static Tomorrow",
+    challenge: "Complete the filterSquares function.\n\nGiven a list of integers, return a new list containing the square of each positive number, in the same order. Skip zero and negative numbers entirely.",
+    examples: [
+      { input: "filterSquares([1, -2, 3, 0, -4, 5])", output: "1, 9, 25" },
+      { input: "filterSquares([-1, -2, -3])",         output: "(empty)"  },
+      { input: "filterSquares([2, 4, 6])",            output: "4, 16, 36" },
+    ],
+    description: "Not every value in the stream deserves to echo. Keep only what's positive — then let it resonate, squared.",
+    type: "complete",
+    starterCode:
+`def filterSquares(nums):
+    # Complete this function
+    # Return a NEW list with the square of each POSITIVE number in nums,
+    # preserving order. Skip zero and negative numbers.
+    pass
+
+# Public test runner — do not modify
+print(", ".join(str(n) for n in filterSquares([1, -2, 3, 0, -4, 5])))
+print(", ".join(str(n) for n in filterSquares([-1, -2, -3])))
+print(", ".join(str(n) for n in filterSquares([2, 4, 6])))
+`,
+    starterCodeJS:
+`/**
+ * @param {number[]} nums
+ * @return {number[]}
+ */
+var filterSquares = function(nums) {
+    // Complete this function
+    // Return a NEW array with the square of each POSITIVE number in nums,
+    // preserving order. Skip zero and negative numbers.
+};
+
+// Public test runner — do not modify
+console.log(filterSquares([1, -2, 3, 0, -4, 5]).join(", "));
+console.log(filterSquares([-1, -2, -3]).join(", "));
+console.log(filterSquares([2, 4, 6]).join(", "));
+`,
+    expectedOutput:   "1, 9, 25\n\n4, 16, 36",
+    expectedOutputJS: "1, 9, 25\n\n4, 16, 36",
+    songName: "TBD",
+    requiredFeatures: ["functions", "lists"],
+    hint: "Build a new empty list, loop through nums, and only append the square if the number is greater than 0.",
+    editorHeight: "380px",
+    callTemplate: "filterSquares({args})",
+    hiddenTests: [
+      { args: [[3, -3, 0, 9]],   expected: [9, 81] },
+      { args: [[]],              expected: []      },
+      { args: [[-5, -10]],       expected: []      },
+      { args: [[7]],             expected: [49]     },
+      { args: [[1, 2, 3, 4, 5]], expected: [1, 4, 9, 16, 25] },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    // ⚠ PLACEHOLDER — no real audio provided for this level yet.
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_positive_squares_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_positive_squares_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_positive_squares_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_positive_squares_melody.mp3", broken: true },
+    },
+  },
+
+  {
+    id: 5,
+    order: 50,
+    title: "Level — Signal Memory",
+    locked: true,
+    password: "TBD", // ← update once Positive Squares' songName is picked
+    challenge: "Complete the uniqueValues function.\n\nGiven a list of integers, return a new list containing only the first occurrence of each value, in their original order. Remove all later duplicates.",
+    examples: [
+      { input: "uniqueValues([1, 2, 2, 3, 1, 4])", output: "1, 2, 3, 4" },
+      { input: "uniqueValues([5, 5, 5])",          output: "5"          },
+      { input: "uniqueValues([])",                 output: "(empty)"   },
+    ],
+    description: "A signal doesn't need to repeat to be heard. Remember what's already played — let only the new through.",
+    type: "complete",
+    starterCode:
+`def uniqueValues(nums):
+    # Complete this function
+    # Return a NEW list with only the FIRST occurrence of each value,
+    # preserving order. Remove later duplicates.
+    pass
+
+# Public test runner — do not modify
+print(", ".join(str(n) for n in uniqueValues([1, 2, 2, 3, 1, 4])))
+print(", ".join(str(n) for n in uniqueValues([5, 5, 5])))
+print(", ".join(str(n) for n in uniqueValues([])))
+`,
+    starterCodeJS:
+`/**
+ * @param {number[]} nums
+ * @return {number[]}
+ */
+var uniqueValues = function(nums) {
+    // Complete this function
+    // Return a NEW array with only the FIRST occurrence of each value,
+    // preserving order. Remove later duplicates.
+};
+
+// Public test runner — do not modify
+console.log(uniqueValues([1, 2, 2, 3, 1, 4]).join(", "));
+console.log(uniqueValues([5, 5, 5]).join(", "));
+console.log(uniqueValues([]).join(", "));
+`,
+    expectedOutput:   "1, 2, 3, 4\n5\n",
+    expectedOutputJS: "1, 2, 3, 4\n5\n",
+    songName: "TBD",
+    requiredFeatures: ["functions", "sets"],
+    hint: "Try using a set (Python: set(), JS: new Set()) to track which values you've already seen while looping through the list.",
+    editorHeight: "380px",
+    callTemplate: "uniqueValues({args})",
+    hiddenTests: [
+      { args: [[9, 9, 8, 7, 8, 9]],  expected: [9, 8, 7] },
+      { args: [[1, 1, 1, 1]],        expected: [1]       },
+      { args: [[]],                  expected: []         },
+      { args: [[4, 3, 2, 1]],        expected: [4, 3, 2, 1] },
+      { args: [[0, 0, -1, -1, 2]],   expected: [0, -1, 2] },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    // ⚠ PLACEHOLDER — no real audio provided for this level yet.
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_signal_memory_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_signal_memory_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_signal_memory_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_signal_memory_melody.mp3", broken: true },
+    },
+  },
 ];
+export const orderedLevels = [...levels].sort((a, b) => a.order - b.order);

@@ -1,5 +1,6 @@
 .landing {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,21 +32,24 @@
 }
 
 .orb-1 {
-  width: 500px;
-  height: 500px;
+  width: 600px;
+  height: 600px;
   background: rgba(176, 68, 255, 0.12);
-  top: -100px;
-  right: -100px;
+  top: -120px;
+  right: -120px;
 }
 
 .orb-2 {
-  width: 400px;
-  height: 400px;
+  width: 500px;
+  height: 500px;
   background: rgba(0, 245, 255, 0.08);
-  bottom: -80px;
-  left: -80px;
+  bottom: -100px;
+  left: -100px;
 }
 
+/* Content now scales with viewport width instead of being capped
+   narrow — fills far more of the screen on wide monitors while still
+   respecting a sane upper bound so text doesn't sprawl unreadably. */
 .landing-content {
   position: relative;
   z-index: 1;
@@ -147,4 +151,5 @@
   border-top: 1px solid var(--border-color);
   padding-top: 20px;
   width: 100%;
+  max-width: 700px;
 }

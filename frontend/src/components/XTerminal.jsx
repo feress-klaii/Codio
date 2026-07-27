@@ -3,6 +3,23 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
+// XTerminal — a real terminal emulator component, with each line
+// manually center-padded based on the terminal's actual column width.
+//
+// xterm.js renders onto a canvas-based character grid — CSS text-align
+// has no effect on it at all. To visually center content we compute how
+// many blank columns are available (term.cols - line.length) and prepend
+// half of that as leading spaces before writing each line. This adapts
+// automatically as the terminal resizes, since fitAddon keeps term.cols
+// current.
+
+const centerLine = (text, cols) => {
+  if (!cols || text.length >= cols) return text;
+  const totalPad = cols - text.length;
+  const left = Math.floor(totalPad / 2);
+  return " ".repeat(left) + text;
+};
+
 const XTerminal = forwardRef(function XTerminal(_, ref) {
   const containerRef = useRef(null);
   const termRef      = useRef(null);
@@ -22,7 +39,7 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
         brightRed:     "#ff2d78",
         green:         "#00ff9c",
         brightGreen:   "#00ff9c",
-        yellow:        "#f6ad55",   // orange — wrong output
+        yellow:        "#f6ad55",
         brightYellow:  "#fbd38d",
         blue:          "#00f5ff",
         brightBlue:    "#00f5ff",
@@ -48,8 +65,9 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
     termRef.current     = term;
     fitAddonRef.current = fitAddon;
 
-    term.writeln("\x1b[36m[ CODIO OUTPUT TERMINAL ]\x1b[0m");
-    term.writeln("\x1b[90m// Waiting for execution...\x1b[0m");
+    const cols = term.cols;
+    term.writeln(`\x1b[36m${centerLine("[ CODIO OUTPUT TERMINAL ]", cols)}\x1b[0m`);
+    term.writeln(`\x1b[90m${centerLine("// Waiting for execution...", cols)}\x1b[0m`);
 
     const handleResize = () => fitAddon.fit();
     window.addEventListener("resize", handleResize);
@@ -65,49 +83,68 @@ const XTerminal = forwardRef(function XTerminal(_, ref) {
     // mode: "success" → green, "wrong" → orange, "error" → red
     writeOutput(text, mode = "success") {
       if (!termRef.current) return;
-      termRef.current.reset();
-      termRef.current.writeln("\x1b[36m[ OUTPUT ]\x1b[0m");
+      const term = termRef.current;
+      const cols = term.cols;
+      term.reset();
+      term.writeln(`\x1b[36m${centerLine("[ OUTPUT ]", cols)}\x1b[0m`);
 
       if (!text || text.trim() === "") {
-        termRef.current.writeln("\x1b[90m// No output produced.\x1b[0m");
+        term.writeln(`\x1b[90m${centerLine("// No output produced.", cols)}\x1b[0m`);
         return;
       }
 
-      // color codes: green=92, orange/yellow=93, red=91
       const colorCode = mode === "error" ? "91" : mode === "wrong" ? "93" : "92";
 
       text.split("\n").forEach((line) => {
-        termRef.current.writeln(`\x1b[${colorCode}m${line}\x1b[0m`);
+        term.writeln(`\x1b[${colorCode}m${centerLine(line, cols)}\x1b[0m`);
       });
     },
 
     // Orange hint shown below wrong output
     writeHint(text) {
       if (!termRef.current) return;
-      termRef.current.writeln("");
-      termRef.current.writeln("\x1b[33m⚠ OUTPUT MISMATCH\x1b[0m");
+      const term = termRef.current;
+      const cols = term.cols;
+      term.writeln("");
+      term.writeln(`\x1b[33m${centerLine("⚠ OUTPUT MISMATCH", cols)}\x1b[0m`);
       text.split("\n").forEach((line) => {
-        termRef.current.writeln(`\x1b[33m  ${line}\x1b[0m`);
+        term.writeln(`\x1b[33m${centerLine(line, cols)}\x1b[0m`);
       });
+    },
+
+    // Highlights that a syntax/runtime error occurred on a specific line —
+    // this was being called from Level.jsx but never actually implemented,
+    // which would throw at runtime the first time a syntax error fired.
+    writeErrorLine(lineNumber) {
+      if (!termRef.current || !lineNumber) return;
+      const term = termRef.current;
+      const cols = term.cols;
+      term.writeln("");
+      term.writeln(`\x1b[91m${centerLine(`⚠ Error on line ${lineNumber}`, cols)}\x1b[0m`);
     },
 
     writeInfo(text) {
       if (!termRef.current) return;
-      termRef.current.writeln(`\x1b[36m${text}\x1b[0m`);
+      const term = termRef.current;
+      term.writeln(`\x1b[36m${centerLine(text, term.cols)}\x1b[0m`);
     },
 
     writeLoading() {
       if (!termRef.current) return;
-      termRef.current.reset();
-      termRef.current.writeln("\x1b[36m[ OUTPUT ]\x1b[0m");
-      termRef.current.writeln("\x1b[90m// Executing...\x1b[0m");
+      const term = termRef.current;
+      const cols = term.cols;
+      term.reset();
+      term.writeln(`\x1b[36m${centerLine("[ OUTPUT ]", cols)}\x1b[0m`);
+      term.writeln(`\x1b[90m${centerLine("// Executing...", cols)}\x1b[0m`);
     },
 
     clear() {
       if (!termRef.current) return;
-      termRef.current.reset();
-      termRef.current.writeln("\x1b[36m[ CODIO OUTPUT TERMINAL ]\x1b[0m");
-      termRef.current.writeln("\x1b[90m// Waiting for execution...\x1b[0m");
+      const term = termRef.current;
+      const cols = term.cols;
+      term.reset();
+      term.writeln(`\x1b[36m${centerLine("[ CODIO OUTPUT TERMINAL ]", cols)}\x1b[0m`);
+      term.writeln(`\x1b[90m${centerLine("// Waiting for execution...", cols)}\x1b[0m`);
     },
   }));
 
