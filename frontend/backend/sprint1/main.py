@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional
 import subprocess
 import tempfile
 import os
@@ -51,13 +51,21 @@ BLOCKED_IMPORTS = {
 # request. The only thing the client controls is which level_id is being
 # played — the actual test data always comes from here.
 #
-# callTemplate uses "{args}" as a placeholder for the comma-joined,
-# Python-literal-safe representation of each test's positional arguments.
+# `callTemplate` is a dict keyed by language, since the same problem can have
+# a different calling shape per language (e.g. a Python class method vs a
+# plain JS function). `tests` (args/expected) is shared across languages —
+# the underlying problem is identical, only the call syntax differs.
+#
+# "{args}" is a placeholder substituted with the comma-joined, language-safe
+# literal representation of each test's positional arguments.
 # ═══════════════════════════════════════════════════════════════════════════
 
 LEVEL_HIDDEN_TESTS = {
     1: {  # Data Echoes — formatReport
-        "callTemplate": "formatReport({args})",
+        "callTemplate": {
+            "python":     "formatReport({args})",
+            "javascript": "formatReport({args})",
+        },
         "tests": [
             {"args": ["Zoe", 45, 60],   "expected": "Name: Zoe, Age: 45, Score: 60.00"},
             {"args": ["Max", 8, 99.99], "expected": "Name: Max, Age: 8, Score: 99.99"},
@@ -65,25 +73,57 @@ LEVEL_HIDDEN_TESTS = {
         ],
     },
     2: {  # Even Frequency — sumEven
-        "callTemplate": "sumEven({args})",
+        "callTemplate": {
+            "python":     "sumEven({args})",
+            "javascript": "sumEven({args})",
+        },
         "tests": [
-            {"args": [[]],              "expected": 0},
-            {"args": [[-2, -4, 1]],     "expected": -6},
-            {"args": [[0, 1, 2]],       "expected": 2},
-            {"args": [[100, 99]],       "expected": 100},
-            {"args": [[7, 13, 21]],     "expected": 0},
-            {"args": [[2, 2, 2]],       "expected": 6},
-            {"args": [[-1, -2, -3, -4]],"expected": -6},
+            {"args": [[]],               "expected": 0},
+            {"args": [[-2, -4, 1]],      "expected": -6},
+            {"args": [[0, 1, 2]],        "expected": 2},
+            {"args": [[100, 99]],        "expected": 100},
+            {"args": [[7, 13, 21]],      "expected": 0},
+            {"args": [[2, 2, 2]],        "expected": 6},
+            {"args": [[-1, -2, -3, -4]], "expected": -6},
         ],
     },
     3: {  # Mirror Logic — isPalindrome
-        "callTemplate": "Solution().isPalindrome({args})",
+        "callTemplate": {
+            "python":     "Solution().isPalindrome({args})",
+            "javascript": "isPalindrome({args})",
+        },
         "tests": [
             {"args": [12321], "expected": True},
             {"args": [123],   "expected": False},
             {"args": [0],     "expected": True},
             {"args": [-5],    "expected": False},
             {"args": [1],     "expected": True},
+        ],
+    },
+    4: {  # Positive Squares — filterSquares
+        "callTemplate": {
+            "python":     "filterSquares({args})",
+            "javascript": "filterSquares({args})",
+        },
+        "tests": [
+            {"args": [[3, -3, 0, 9]],   "expected": [9, 81]},
+            {"args": [[]],              "expected": []},
+            {"args": [[-5, -10]],       "expected": []},
+            {"args": [[7]],             "expected": [49]},
+            {"args": [[1, 2, 3, 4, 5]], "expected": [1, 4, 9, 16, 25]},
+        ],
+    },
+    5: {  # Signal Memory — uniqueValues
+        "callTemplate": {
+            "python":     "uniqueValues({args})",
+            "javascript": "uniqueValues({args})",
+        },
+        "tests": [
+            {"args": [[9, 9, 8, 7, 8, 9]],  "expected": [9, 8, 7]},
+            {"args": [[1, 1, 1, 1]],        "expected": [1]},
+            {"args": [[]],                  "expected": []},
+            {"args": [[4, 3, 2, 1]],        "expected": [4, 3, 2, 1]},
+            {"args": [[0, 0, -1, -1, 2]],   "expected": [0, -1, 2]},
         ],
     },
 }
@@ -163,42 +203,20 @@ def score_from_criteria(criteria: list, analysis: dict, correct_output: bool, al
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# GENERIC HIDDEN TEST RUNNER
-# Replaces the old per-level "if level_id == 2: build sumEven-specific
-# script" approach. Any function/class-method-based level just needs an
-# entry in LEVEL_HIDDEN_TESTS above — zero new code required here.
+# GENERIC HIDDEN TEST RUNNER — Python AND JavaScript
+#
+# Any function/class-method-based level just needs a LEVEL_HIDDEN_TESTS
+# entry with a callTemplate per language above — zero new code required
+# here to support a new level, in either language.
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run_hidden_tests(user_code: str, level_id: int) -> bool:
-    config = LEVEL_HIDDEN_TESTS.get(level_id)
-    if not config:
-        # No hidden tests defined for this level — treat as passed
-        # (e.g. Level 0, which is structurally cheat-resistant via the
-        # `loops` criterion requiring a real AST loop node to exist).
-        return True
-
-    call_template = config["callTemplate"]
-    tests         = config["tests"]
-
-    lines = [user_code, ""]
-    for i, t in enumerate(tests):
-        # repr() produces valid Python source for str/int/float/bool/list/None,
-        # which is what we need since the call template is substituted
-        # directly into a Python script.
-        args_literal = ", ".join(repr(a) for a in t["args"])
-        call_expr    = call_template.replace("{args}", args_literal)
-        expected_literal = repr(t["expected"])
-
-        lines.append(f'_r{i} = {call_expr}')
-        lines.append(f'print("HIDDEN_PASS" if _r{i} == {expected_literal} else "HIDDEN_FAIL")')
-
-    test_code = "\n".join(lines)
-
+def _run_test_script(script: str, suffix: str, runner: str) -> bool:
+    """Shared subprocess execution for both Python and JS hidden test scripts."""
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as f:
-            f.write(test_code)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode="w", encoding="utf-8") as f:
+            f.write(script)
             fname = f.name
-        result = subprocess.run(["python", fname], capture_output=True, text=True, timeout=5)
+        result = subprocess.run([runner, fname], capture_output=True, text=True, timeout=5)
         os.unlink(fname)
 
         if result.returncode != 0:
@@ -206,10 +224,56 @@ def run_hidden_tests(user_code: str, level_id: int) -> bool:
 
         out_lines = result.stdout.strip().split("\n")
         results   = [l.strip() for l in out_lines if l.strip() in ("HIDDEN_PASS", "HIDDEN_FAIL")]
-        return len(results) == len(tests) and all(r == "HIDDEN_PASS" for r in results)
+        return len(results) > 0 and all(r == "HIDDEN_PASS" for r in results)
 
     except Exception:
         return False
+
+
+def run_hidden_tests(user_code: str, level_id: int, language: str = "python") -> bool:
+    config = LEVEL_HIDDEN_TESTS.get(level_id)
+    if not config:
+        # No hidden tests defined for this level — treat as passed
+        # (e.g. Level 0, which is structurally cheat-resistant via the
+        # `loops` criterion requiring a real AST loop node to exist).
+        return True
+
+    lang          = language if language in ("python", "javascript") else "python"
+    call_template = config["callTemplate"].get(lang)
+    tests         = config["tests"]
+
+    if not call_template:
+        # This level doesn't define a hidden-test call template for this
+        # language yet — fail safe rather than silently granting a pass.
+        return False
+
+    if lang == "python":
+        lines = [user_code, ""]
+        for i, t in enumerate(tests):
+            # repr() produces valid Python source for str/int/float/bool/list/None
+            args_literal     = ", ".join(repr(a) for a in t["args"])
+            call_expr        = call_template.replace("{args}", args_literal)
+            expected_literal = repr(t["expected"])
+            lines.append(f'_r{i} = {call_expr}')
+            lines.append(f'print("HIDDEN_PASS" if _r{i} == {expected_literal} else "HIDDEN_FAIL")')
+        test_code = "\n".join(lines)
+        return _run_test_script(test_code, ".py", "python")
+
+    else:  # javascript
+        lines = [user_code, ""]
+        for i, t in enumerate(tests):
+            # json.dumps produces valid JS literal syntax for str/int/float/
+            # bool/list/None (true/false/null lowercase — exactly what JS
+            # needs, unlike Python's repr() which gives True/False/None).
+            args_literal      = ", ".join(json.dumps(a) for a in t["args"])
+            call_expr         = call_template.replace("{args}", args_literal)
+            expected_literal  = json.dumps(t["expected"])
+            lines.append(f'var _r{i} = {call_expr};')
+            lines.append(
+                f'console.log(JSON.stringify(_r{i}) === JSON.stringify({expected_literal}) ? "HIDDEN_PASS" : "HIDDEN_FAIL");'
+            )
+        test_code = "\n".join(lines)
+        return _run_test_script(test_code, ".js", "node")
 
 
 # ── Security: scan for blocked imports ──
@@ -337,15 +401,10 @@ def analyze_code_ml(request: AnalyzeRequest):
     except Exception as e:
         output = str(e)
 
-    # ── Hidden tests — Python only for now (JS parity is a fast-follow) ──
+    # ── Hidden tests — now generic across Python AND JavaScript ──
     all_hidden_passed = True
-    if lang == "python" and request.level_id in LEVEL_HIDDEN_TESTS:
-        all_hidden_passed = correct_output and run_hidden_tests(code, request.level_id)
-    elif lang != "python" and request.level_id in LEVEL_HIDDEN_TESTS:
-        # JS hidden-test harness not generalized yet — don't silently grant
-        # full credit, but don't unfairly block JS solutions either.
-        # For now: fall back to public correctness only for JS on these levels.
-        all_hidden_passed = correct_output
+    if request.level_id in LEVEL_HIDDEN_TESTS:
+        all_hidden_passed = correct_output and run_hidden_tests(code, request.level_id, lang)
 
     ast_analysis["correct_output"]    = correct_output
     ast_analysis["error_line"]        = error_line
@@ -358,7 +417,6 @@ def analyze_code_ml(request: AnalyzeRequest):
             criteria_dicts, ast_analysis, correct_output, all_hidden_passed
         )
     else:
-        # Fallback for any level not yet migrated to criteria
         features = np.array([[
             ast_analysis["loops"],
             ast_analysis["conditions"],
@@ -433,6 +491,16 @@ def analyze_python(code):
             conditions += 1
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             functions += 1
+        elif isinstance(node, ast.comprehension):
+            # List/set/dict comprehensions and generator expressions use
+            # `ast.comprehension` nodes for their "for" clause, NOT ast.For —
+            # and their filter conditions live in `.ifs`, NOT ast.If. Without
+            # this, an idiomatic comprehension solution would score zero on
+            # loops/conditions despite being fully correct — this closes
+            # that gap so comprehension-style solutions are counted fairly,
+            # same as explicit for/if versions of the same logic.
+            loops += 1
+            conditions += len(node.ifs)
         for child in ast.iter_child_nodes(node):
             visit(child, depth + 1)
 

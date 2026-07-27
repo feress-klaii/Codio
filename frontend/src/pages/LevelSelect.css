@@ -1,8 +1,8 @@
 .levelselect {
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg-primary);
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* the page itself never scrolls anymore */
 }
 
 .ls-bg {
@@ -11,18 +11,23 @@
   z-index: 0;
 }
 
+/* ── Fixed-header / scrollable-middle / fixed-footer layout ── */
 .ls-layout {
   position: relative;
   z-index: 1;
   max-width: 900px;
+  width: 100%;
+  height: 100vh;
   margin: 0 auto;
   padding: 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* HEADER */
+/* HEADER — fixed in place */
 .ls-header {
   display: flex;
   align-items: center;
@@ -30,6 +35,7 @@
   gap: 16px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .btn-back {
@@ -72,11 +78,15 @@
   letter-spacing: 2px;
 }
 
-/* LEVEL CARDS */
+/* LEVEL CARDS — the ONLY scrollable region */
 .ls-levels {
+  flex: 1;
+  min-height: 0; /* required for flex children to actually scroll instead of overflowing */
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-right: 6px; /* room for the scrollbar so cards don't feel cramped against it */
 }
 
 .level-card {
@@ -88,22 +98,20 @@
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   transition: border-color 0.3s, box-shadow 0.3s;
+  flex-shrink: 0; /* cards never compress, they just scroll */
 }
 
 .level-card.unlocked {
   border-color: rgba(0, 245, 255, 0.2);
 }
-
 .level-card.unlocked:hover {
   border-color: var(--accent-cyan);
   box-shadow: 0 0 20px rgba(0, 245, 255, 0.08);
 }
-
 .level-card.locked {
   border-color: rgba(255, 255, 255, 0.05);
   opacity: 0.8;
 }
-
 .level-card.just-unlocked {
   border-color: var(--accent-green);
   box-shadow: 0 0 24px rgba(0, 255, 156, 0.15);
@@ -155,7 +163,6 @@
   letter-spacing: 1px;
   color: var(--text-primary);
 }
-
 .locked .level-name { color: var(--text-secondary); }
 
 .level-desc {
@@ -167,30 +174,36 @@
 
 .level-meta {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 12px; /* more separation from the description text above */
 }
-
 .level-type {
   font-family: var(--font-mono);
   font-size: 10px;
+  font-weight: 600;
   color: var(--accent-purple);
-  border: 1px solid rgba(176, 68, 255, 0.3);
-  padding: 2px 8px;
+  border: 1px solid rgba(176, 68, 255, 0.35);
+  background: rgba(176, 68, 255, 0.06);
+  padding: 5px 12px;
   letter-spacing: 2px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
 .level-tag {
   font-family: var(--font-mono);
   font-size: 10px;
+  font-weight: 600;
   color: var(--accent-cyan);
-  border: 1px solid rgba(0, 245, 255, 0.2);
-  padding: 2px 8px;
-  letter-spacing: 1px;
+  border: 1px solid rgba(0, 245, 255, 0.3);
+  background: rgba(0, 245, 255, 0.05);
+  padding: 5px 12px;
+  letter-spacing: 1.5px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
-/* LOCK FORM */
 .level-card-right {
   min-width: 260px;
   display: flex;
@@ -205,9 +218,7 @@
   width: 100%;
 }
 
-.lock-icon {
-  font-size: 20px;
-}
+.lock-icon { font-size: 20px; }
 
 .lock-hint {
   font-family: var(--font-mono);
@@ -235,15 +246,8 @@
   width: 180px;
   transition: border-color 0.2s;
 }
-
-.lock-input:focus {
-  border-color: var(--accent-purple);
-}
-
-.lock-input::placeholder {
-  color: var(--text-muted);
-  letter-spacing: 1px;
-}
+.lock-input:focus { border-color: var(--accent-purple); }
+.lock-input::placeholder { color: var(--text-muted); letter-spacing: 1px; }
 
 .lock-error {
   font-family: var(--font-mono);
@@ -259,10 +263,11 @@
   letter-spacing: 1px;
 }
 
-/* FOOTER */
+/* FOOTER — fixed in place */
 .ls-footer {
   border-top: 1px solid var(--border-color);
   padding-top: 16px;
+  flex-shrink: 0;
 }
 
 .ls-footer-note {
