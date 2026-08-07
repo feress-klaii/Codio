@@ -60,6 +60,63 @@ BLOCKED_IMPORTS = {
 # literal representation of each test's positional arguments.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+# CRITERIA — now server-side authoritative, same pattern as LEVEL_HIDDEN_TESTS.
+#
+# Previously the backend trusted `request.criteria` from the frontend and
+# fell back to raw ML-model scoring if it was missing for any reason (stale
+# build, browser cache, a level object not fully loaded, etc). That fallback
+# uses a hardcoded drums=loops/chords=conditions mapping that has nothing to
+# do with a given level's actual intended criteria — so a sync hiccup would
+# silently produce plausible-looking but WRONG harmony scores and layer sync
+# states instead of failing loudly. Keeping the canonical copy here means
+# the backend never depends on the frontend sending the right rules at all.
+# ═══════════════════════════════════════════════════════════════════════════
+
+LEVEL_CRITERIA = {
+    0: [  # The First Beat
+        {"key": "loops",           "layer": "drums",  "weight": 35},
+        {"key": "no_syntax_error", "layer": "chords", "weight": 35},
+        {"key": "correct_output",  "layer": "bass",   "weight": 30},
+    ],
+    1: [  # Data Echoes
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+    3: [  # Mirror Logic
+        {"key": "all_hidden_passed", "layer": "drums",  "weight": 30},
+        {"key": "conditions",        "layer": "chords", "weight": 25},
+        {"key": "functions",         "layer": "bass",   "weight": 25},
+        {"key": "no_syntax_error",   "layer": "melody", "weight": 20},
+    ],
+    2: [  # Even Frequency
+        {"key": "loops",             "layer": "drums",  "weight": 25},
+        {"key": "conditions",        "layer": "chords", "weight": 25},
+        {"key": "no_syntax_error",   "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+    4: [  # Positive Squares
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+    5: [  # Signal Memory
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+    6: [  # Loudest Voice
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+}
+
 LEVEL_HIDDEN_TESTS = {
     1: {  # Data Echoes — formatReport
         "callTemplate": {
@@ -411,7 +468,18 @@ def analyze_code_ml(request: AnalyzeRequest):
     ast_analysis["all_hidden_passed"] = all_hidden_passed
 
     # ── Generic scoring ──
-    if request.criteria:
+    # Server-side LEVEL_CRITERIA is now the source of truth — this can
+    # never silently fall back to wrong ML-model scoring due to a stale
+    # frontend build, browser cache, etc. request.criteria (if sent) is
+    # only used as a secondary fallback for a level with no server entry
+    # yet, purely so nothing breaks while a brand new level is mid-setup.
+    server_criteria = LEVEL_CRITERIA.get(request.level_id)
+
+    if server_criteria:
+        layers, harmony_score = score_from_criteria(
+            server_criteria, ast_analysis, correct_output, all_hidden_passed
+        )
+    elif request.criteria:
         criteria_dicts = [c.dict() for c in request.criteria]
         layers, harmony_score = score_from_criteria(
             criteria_dicts, ast_analysis, correct_output, all_hidden_passed
@@ -501,6 +569,15 @@ def analyze_python(code):
             # same as explicit for/if versions of the same logic.
             loops += 1
             conditions += len(node.ifs)
+        elif isinstance(node, ast.BoolOp):
+            # A boolean short-circuit expression (`x and y`, `x or y`) used
+            # in a return statement functions as an implicit condition —
+            # e.g. `return x >= 0 and str(x) == str(x)[::-1]` is a fully
+            # correct, idiomatic solution with zero explicit `if` statements.
+            # Without this, that solution would score conditions=0 despite
+            # being correct, permanently capping its harmony score below
+            # 100% on any level whose criteria requires `conditions`.
+            conditions += 1
         for child in ast.iter_child_nodes(node):
             visit(child, depth + 1)
 
@@ -529,7 +606,7 @@ def analyze_js(code):
                 "nested_depth":      data.get("nested_depth", 0),
                 "syntax_error":      data.get("syntax_error", False),
                 "correct_output":    False,
-                "error_line":        None,
+                "error_line":        None
             }
     except Exception:
         pass
