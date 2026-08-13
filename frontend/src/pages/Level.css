@@ -760,3 +760,16 @@
      dropdown on the right */
   text-align: left;
 }
+
+
+.song-reveal.boss-reveal {
+  border-color: #ffd166;
+  box-shadow: 0 0 32px rgba(255, 209, 102, 0.25);
+}
+.song-reveal.boss-reveal .song-reveal-label {
+  color: #ffd166;
+  font-size: 13px;
+  letter-spacing: 3px;
+}
+
+

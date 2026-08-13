@@ -277,3 +277,30 @@
   letter-spacing: 1px;
   line-height: 1.6;
 }
+
+.boss-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  background: rgba(255, 209, 102, 0.08);
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+.level-card.boss-card {
+  border-color: rgba(255, 209, 102, 0.4);
+}
+.level-card.boss-card.unlocked:hover {
+  border-color: #ffd166;
+  box-shadow: 0 0 24px rgba(255, 209, 102, 0.15);
+}
+
+
+
+

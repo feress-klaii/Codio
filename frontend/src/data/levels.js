@@ -502,6 +502,83 @@ console.log(mostFrequent([7]));
       melody: { src: "/audio/loudest_voice_melody.m4a", broken: true },
     },
   },
+  {
+    id: 7,
+    order: 70,
+    title: "Level — Peak Signal",
+    locked: true,
+    password: "Synthetic Breath", // ← update once Loudest Voice's songName is picked
+    challenge: "Complete the topScorer function.\n\nGiven a list of student records (each an object with 'name' and 'score'), return the name of the student with the highest score. If there's a tie, return whoever appears FIRST in the list.",
+    examples: [
+      { input: 'topScorer([{"name":"Alice","score":92},{"name":"Bob","score":88},{"name":"Cy","score":95}])', output: "Cy" },
+      { input: 'topScorer([{"name":"Amy","score":70}])', output: "Amy" },
+      { input: 'topScorer([{"name":"Max","score":50},{"name":"Ann","score":50}])', output: "Max" },
+    ],
+    description: "Every record hides a value. Reach into each one, find the loudest peak, and name it.",
+    type: "complete",
+    starterCode:
+`def topScorer(students):
+    # Complete this function
+    # students is a list of dicts like {"name": ..., "score": ...}
+    # Return the name of the student with the highest score.
+    # On a tie, return whoever appears FIRST.
+    pass
+ 
+# Public test runner — do not modify
+print(topScorer([{"name": "Alice", "score": 92}, {"name": "Bob", "score": 88}, {"name": "Cy", "score": 95}]))
+print(topScorer([{"name": "Amy", "score": 70}]))
+print(topScorer([{"name": "Max", "score": 50}, {"name": "Ann", "score": 50}]))
+`,
+    starterCodeJS:
+`/**
+ * @param {Array<{name: string, score: number}>} students
+ * @return {string}
+ */
+var topScorer = function(students) {
+    // Complete this function
+    // Return the name of the student with the highest score.
+    // On a tie, return whoever appears FIRST.
+};
+ 
+// Public test runner — do not modify
+console.log(topScorer([{name:"Alice",score:92},{name:"Bob",score:88},{name:"Cy",score:95}]));
+console.log(topScorer([{name:"Amy",score:70}]));
+console.log(topScorer([{name:"Max",score:50},{name:"Ann",score:50}]));
+`,
+    expectedOutput:   "Cy\nAmy\nMax",
+    expectedOutputJS: "Cy\nAmy\nMax",
+    songName: "TBD",
+    requiredFeatures: ["functions", "nested-data"],
+    hint: "Loop through the list, and for each student's dict/object, compare its 'score' field to the best one found so far.",
+    editorHeight: "380px",
+    callTemplate: "topScorer({args})",
+    hiddenTests: [
+      { args: [[{name:"Zoe",score:10},{name:"Bo",score:99}]], expected: "Bo" },
+      { args: [[{name:"A",score:0},{name:"B",score:0},{name:"C",score:5}]], expected: "C" },
+      { args: [[{name:"Solo",score:1}]], expected: "Solo" },
+      { args: [[{name:"X",score:-5},{name:"Y",score:-1}]], expected: "Y" },
+      { args: [[{name:"T1",score:100},{name:"T2",score:100},{name:"T3",score:100}]], expected: "T1" },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    // ⚠ PLACEHOLDER — no real audio provided for this level yet.
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_peak_signal_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_peak_signal_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_peak_signal_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_peak_signal_melody.mp3", broken: true },
+    },
+  },
 ];
 
 

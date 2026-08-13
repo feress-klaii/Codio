@@ -57,7 +57,7 @@ function LevelSelect({ setScreen, goToLevel }) {
             return (
               <div
                 key={level.id}
-                className={`level-card corner-accent ${isUnlocked ? "unlocked" : "locked"} ${isNew ? "just-unlocked" : ""}`}
+                className={`level-card corner-accent ${isUnlocked ? "unlocked" : "locked"} ${isNew ? "just-unlocked" : ""} ${level.isBoss ? "boss-card" : ""}`}
               >
                 <div className="level-card-left">
                   <div className="level-id">
@@ -67,7 +67,10 @@ function LevelSelect({ setScreen, goToLevel }) {
                     <span className="level-status-dot" />
                   </div>
                   <div className="level-info">
-                    <h3 className="level-name">{level.title}</h3>
+                    <h3 className="level-name">
+                      {level.isBoss && <span className="boss-badge">⚡ BOSS</span>}
+                      {level.title}
+                    </h3>
                     <p className="level-desc">{level.description}</p>
                     {isUnlocked && (
                       <div className="level-meta">
