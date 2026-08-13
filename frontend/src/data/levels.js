@@ -494,7 +494,6 @@ console.log(mostFrequent([7]));
       bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
       melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
     },
-    // ⚠ PLACEHOLDER — no real audio provided for this level yet.
     layers: {
       drums:  { src: "/audio/loudest_voice_drums.m4a",  broken: true },
       chords: { src: "/audio/loudest_voice_chords.m4a", broken: true },
@@ -579,6 +578,160 @@ console.log(topScorer([{name:"Max",score:50},{name:"Ann",score:50}]));
       melody: { src: "/audio/PLACEHOLDER_peak_signal_melody.mp3", broken: true },
     },
   },
+  {
+    id: 8,
+    order: 80,
+    isBoss: true,
+    title: "BOSS — Signal Report",
+    locked: true,
+    password: "TBD", // ← update once Peak Signal's songName is picked
+    challenge: "Complete filterValid, groupByType, and processSignals.\n\nGiven a list of sensor readings ({type, value}), drop invalid readings (value <= 0), group the rest by type, then return a string of each type's average value (2 decimals), sorted alphabetically: \"type1: X.XX, type2: Y.YY\"",
+    examples: [
+      { input: '[{"type":"audio","value":4},{"type":"audio","value":5},{"type":"video","value":2}]', output: "audio: 4.50, video: 2.00" },
+      { input: '[{"type":"audio","value":-1},{"type":"video","value":3}]', output: "video: 3.00" },
+    ],
+    description: "Three signals, one report. Filter the noise, group the truth, and speak it in order.",
+    type: "complete",
+    starterCode:
+`def filterValid(readings):
+    # Drop readings with value <= 0
+    pass
+ 
+def groupByType(readings):
+    # Group readings into a dict: type -> [values]
+    pass
+ 
+def processSignals(readings):
+    # Use the two helpers above (or your own approach).
+    # Return "type1: avg1.2f, type2: avg2.2f", sorted alphabetically by type.
+    pass
+ 
+# Public test runner — do not modify
+print(processSignals([{"type": "audio", "value": 4}, {"type": "audio", "value": 5}, {"type": "video", "value": 2}]))
+print(processSignals([{"type": "audio", "value": -1}, {"type": "video", "value": 3}]))
+`,
+    starterCodeJS:
+`function filterValid(readings) {
+    // Drop readings with value <= 0
+}
+function groupByType(readings) {
+    // Group readings into an object: type -> [values]
+}
+function processSignals(readings) {
+    // Use the two helpers above (or your own approach).
+    // Return "type1: avg1.2f, type2: avg2.2f", sorted alphabetically by type.
+}
+ 
+// Public test runner — do not modify
+console.log(processSignals([{type:"audio",value:4},{type:"audio",value:5},{type:"video",value:2}]));
+console.log(processSignals([{type:"audio",value:-1},{type:"video",value:3}]));
+`,
+    expectedOutput:   "audio: 4.50, video: 2.00\nvideo: 3.00",
+    expectedOutputJS: "audio: 4.50, video: 2.00\nvideo: 3.00",
+    songName: "TBD",
+    requiredFeatures: ["functions", "conditions", "dictionaries"],
+    hint: "filterValid uses a condition. groupByType uses a dict/object. processSignals sorts the keys, computes each average, and joins the formatted parts with ', '.",
+    editorHeight: "440px",
+    callTemplate: "processSignals({args})",
+    hiddenTests: [
+      { args: [[{type:"audio",value:4},{type:"audio",value:5},{type:"video",value:2}]], expected: "audio: 4.50, video: 2.00" },
+      { args: [[{type:"audio",value:-1},{type:"video",value:3}]], expected: "video: 3.00" },
+      { args: [[]], expected: "" },
+      { args: [[{type:"z",value:10},{type:"a",value:20}]], expected: "a: 20.00, z: 10.00" },
+      { args: [[{type:"x",value:0},{type:"x",value:6}]], expected: "x: 6.00" },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 15 },
+      { key: "conditions",        layer: "chords", weight: 15 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 15 },
+      { key: "correct_output",    layer: "melody", weight: 25 },
+      { key: "all_hidden_passed", layer: "lead",   weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "Correctness",    color: "var(--accent-green)"  },
+      lead:   { label: "LEAD",   desc: "All tests pass", color: "#ffd166"               },
+    },
+    // ⚠ PLACEHOLDER — add real audio (needs 5 stems: drums/chords/bass/melody/lead)
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_boss1_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_boss1_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_boss1_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_boss1_melody.mp3", broken: true },
+      lead:   { src: "/audio/PLACEHOLDER_boss1_lead.mp3",   broken: true },
+    },
+  },
+  {
+    id: 9,
+    order: 90,
+    title: "Level — Echo Chamber",
+    locked: true,
+    password: "TBD", // ← update once Signal Report's songName is picked
+    challenge: "Complete the fib function.\n\nGiven a non-negative integer n, return the nth Fibonacci number (fib(0)=0, fib(1)=1) using recursion.",
+    examples: [
+      { input: "fib(0)", output: "0" },
+      { input: "fib(5)", output: "5" },
+      { input: "fib(7)", output: "13" },
+    ],
+    description: "Some echoes call back to smaller echoes, until silence answers first.",
+    type: "complete",
+    starterCode:
+`def fib(n):
+    # Complete this function using recursion
+    # fib(0) = 0, fib(1) = 1
+    pass
+
+# Public test runner — do not modify
+print(fib(0))
+print(fib(5))
+print(fib(7))
+`,
+    starterCodeJS:
+`function fib(n) {
+    // Complete this function using recursion
+    // fib(0) = 0, fib(1) = 1
+}
+
+// Public test runner — do not modify
+console.log(fib(0));
+console.log(fib(5));
+console.log(fib(7));
+`,
+    expectedOutput:   "0\n5\n13",
+    expectedOutputJS: "0\n5\n13",
+    songName: "TBD",
+    requiredFeatures: ["functions", "conditions"],
+    hint: "Base case: if n is 0 or 1, return n. Otherwise, return fib(n-1) + fib(n-2).",
+    editorHeight: "380px",
+    callTemplate: "fib({args})",
+    hiddenTests: [
+      { args: [2],  expected: 1  },
+      { args: [3],  expected: 2  },
+      { args: [6],  expected: 8  },
+      { args: [8],  expected: 21 },
+      { args: [10], expected: 55 },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_echo_chamber_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_echo_chamber_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_echo_chamber_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_echo_chamber_melody.mp3", broken: true },
+    },
+  }
 ];
 
 

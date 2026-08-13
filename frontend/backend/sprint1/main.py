@@ -101,6 +101,12 @@ LEVEL_CRITERIA = {
         {"key": "correct_output",    "layer": "melody", "weight": 25},
         {"key": "all_hidden_passed", "layer": "lead",   "weight": 30},
     ],
+    9: [
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
 }
 
 LEVEL_HIDDEN_TESTS = {
@@ -183,6 +189,16 @@ LEVEL_HIDDEN_TESTS = {
             {"args": [[]], "expected": ""},
             {"args": [[{"type": "z", "value": 10}, {"type": "a", "value": 20}]], "expected": "a: 20.00, z: 10.00"},
             {"args": [[{"type": "x", "value": 0}, {"type": "x", "value": 6}]], "expected": "x: 6.00"},
+        ],
+    },
+     9: {
+        "callTemplate": {"python": "fib({args})", "javascript": "fib({args})"},
+        "tests": [
+            {"args": [2],  "expected": 1},
+            {"args": [3],  "expected": 2},
+            {"args": [6],  "expected": 8},
+            {"args": [8],  "expected": 21},
+            {"args": [10], "expected": 55},
         ],
     },
 }
