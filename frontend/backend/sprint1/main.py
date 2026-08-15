@@ -107,6 +107,18 @@ LEVEL_CRITERIA = {
         {"key": "correct_output",    "layer": "bass",   "weight": 20},
         {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
     ],
+    10: [
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+    11: [
+        {"key": "functions",         "layer": "drums",  "weight": 20},
+        {"key": "loops",             "layer": "chords", "weight": 20},
+        {"key": "no_syntax_error",   "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
+    ],
 }
 
 LEVEL_HIDDEN_TESTS = {
@@ -201,6 +213,27 @@ LEVEL_HIDDEN_TESTS = {
             {"args": [10], "expected": 55},
         ],
     },
+     10: {
+        "callTemplate": {"python": "compress({args})", "javascript": "compress({args})"},
+        "tests": [
+            {"args": ["aabbaa"],     "expected": "a2b2a2"},
+            {"args": ["zzzzz"],      "expected": "z5"},
+            {"args": ["x"],          "expected": "x1"},
+            {"args": ["aabbbccccd"], "expected": "a2b3c4d1"},
+            {"args": ["ababab"],     "expected": "a1b1a1b1a1b1"},
+        ],
+    },
+     11: {
+        "callTemplate": {"python": "binarySearch({args})", "javascript": "binarySearch({args})"},
+        "tests": [
+            {"args": [[1,3,5,7,9], 9], "expected": 4},
+            {"args": [[], 5],          "expected": -1},
+            {"args": [[2], 2],         "expected": 0},
+            {"args": [[2], 3],         "expected": -1},
+            {"args": [[1,2,3,4,5,6,7,8], 8], "expected": 7},
+        ],
+    },
+
 }
 
 

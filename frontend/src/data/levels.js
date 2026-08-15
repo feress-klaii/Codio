@@ -731,7 +731,145 @@ console.log(fib(7));
       bass:   { src: "/audio/PLACEHOLDER_echo_chamber_bass.mp3",   broken: true },
       melody: { src: "/audio/PLACEHOLDER_echo_chamber_melody.mp3", broken: true },
     },
-  }
+  },{
+    id: 10,
+    order: 100,
+    title: "Level — Compressed Wave",
+    locked: true,
+    password: "TBD",
+    challenge: "Complete the compress function.\n\nGiven a string, run-length-encode it: each character followed by its consecutive repeat count, e.g. 'aaabbc' -> 'a3b2c1'.",
+    examples: [
+      { input: 'compress("aaabbc")', output: "a3b2c1" },
+      { input: 'compress("abc")',    output: "a1b1c1" },
+      { input: 'compress("")',       output: "(empty)" },
+    ],
+    description: "Every repeated beat can be folded into one count. Compress the wave without losing its shape.",
+    type: "complete",
+    starterCode:
+`def compress(s):
+    # Complete this function
+    # Return the run-length-encoded string: each char + its consecutive count
+    pass
+ 
+# Public test runner — do not modify
+print(compress("aaabbc"))
+print(compress("abc"))
+print(compress(""))
+`,
+    starterCodeJS:
+`function compress(s) {
+    // Complete this function
+    // Return the run-length-encoded string: each char + its consecutive count
+}
+ 
+// Public test runner — do not modify
+console.log(compress("aaabbc"));
+console.log(compress("abc"));
+console.log(compress(""));
+`,
+    expectedOutput:   "a3b2c1\na1b1c1\n",
+    expectedOutputJS: "a3b2c1\na1b1c1\n",
+    songName: "TBD",
+    requiredFeatures: ["functions", "loops"],
+    hint: "Walk through the string, counting how many times each character repeats in a row before it changes.",
+    editorHeight: "380px",
+    callTemplate: "compress({args})",
+    hiddenTests: [
+      { args: ["aabbaa"],     expected: "a2b2a2" },
+      { args: ["zzzzz"],      expected: "z5" },
+      { args: ["x"],          expected: "x1" },
+      { args: ["aabbbccccd"], expected: "a2b3c4d1" },
+      { args: ["ababab"],     expected: "a1b1a1b1a1b1" },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_compressed_wave_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_compressed_wave_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_compressed_wave_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_compressed_wave_melody.mp3", broken: true },
+    },
+  },
+  {
+    id: 11,
+    order: 110,
+    title: "Level — Binary Trace",
+    locked: true,
+    password: "TBD",
+    challenge: "Complete the binarySearch function.\n\nGiven a sorted list of integers and a target, return the target's index using binary search. Return -1 if not found.",
+    examples: [
+      { input: "binarySearch([1,3,5,7,9], 5)", output: "2" },
+      { input: "binarySearch([1,3,5,7,9], 1)", output: "0" },
+      { input: "binarySearch([1,3,5,7,9], 4)", output: "-1" },
+    ],
+    description: "Don't scan every signal — cut the search in half each time until the trace locks on.",
+    type: "complete",
+    starterCode:
+`def binarySearch(nums, target):
+    # Complete this function using binary search (not a linear loop)
+    # Return the index of target, or -1 if not found
+    pass
+
+# Public test runner — do not modify
+print(binarySearch([1, 3, 5, 7, 9], 5))
+print(binarySearch([1, 3, 5, 7, 9], 1))
+print(binarySearch([1, 3, 5, 7, 9], 4))
+`,
+    starterCodeJS:
+`function binarySearch(nums, target) {
+    // Complete this function using binary search (not a linear loop)
+    // Return the index of target, or -1 if not found
+}
+
+// Public test runner — do not modify
+console.log(binarySearch([1, 3, 5, 7, 9], 5));
+console.log(binarySearch([1, 3, 5, 7, 9], 1));
+console.log(binarySearch([1, 3, 5, 7, 9], 4));
+`,
+    expectedOutput:   "2\n0\n-1",
+    expectedOutputJS: "2\n0\n-1",
+    songName: "TBD",
+    requiredFeatures: ["functions", "loops", "conditions"],
+    hint: "Keep low/high pointers. Check the middle element: if it's too small, search the right half; too big, search the left half.",
+    editorHeight: "380px",
+    callTemplate: "binarySearch({args})",
+    hiddenTests: [
+      { args: [[1,3,5,7,9], 9], expected: 4  },
+      { args: [[], 5],          expected: -1 },
+      { args: [[2], 2],         expected: 0  },
+      { args: [[2], 3],         expected: -1 },
+      { args: [[1,2,3,4,5,6,7,8], 8], expected: 7 },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 20 },
+      { key: "loops",             layer: "chords", weight: 20 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 40 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Iteration",      color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_binary_trace_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_binary_trace_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_binary_trace_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_binary_trace_melody.mp3", broken: true },
+    },
+  },
+
 ];
 
 
