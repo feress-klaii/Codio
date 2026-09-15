@@ -869,6 +869,435 @@ console.log(binarySearch([1, 3, 5, 7, 9], 4));
       melody: { src: "/audio/PLACEHOLDER_binary_trace_melody.mp3", broken: true },
     },
   },
+   {
+    id: 12,
+    order: 120,
+    title: "Level — Distance Sort",
+    locked: true,
+    password: "TBD",
+    challenge: "Complete the sortByDistance function.\n\nGiven a list of integers and a target, sort them by absolute distance from target (ascending). On a tie, the smaller value comes first.",
+    examples: [
+      { input: "sortByDistance([1,5,3,8], 4)", output: "3, 5, 1, 8" },
+      { input: "sortByDistance([10,2,7], 5)",  output: "7, 2, 10" },
+    ],
+    description: "Not every value is equal — sort them by how close they stand to the signal's center.",
+    type: "complete",
+    starterCode:
+`def sortByDistance(nums, target):
+    # Complete this function
+    # Sort nums by abs(x - target) ascending; ties broken by smaller value first
+    pass
+
+# Public test runner — do not modify
+print(", ".join(str(n) for n in sortByDistance([1, 5, 3, 8], 4)))
+print(", ".join(str(n) for n in sortByDistance([10, 2, 7], 5)))
+`,
+    starterCodeJS:
+`function sortByDistance(nums, target) {
+    // Complete this function
+    // Sort nums by abs(x - target) ascending; ties broken by smaller value first
+}
+
+// Public test runner — do not modify
+console.log(sortByDistance([1, 5, 3, 8], 4).join(", "));
+console.log(sortByDistance([10, 2, 7], 5).join(", "));
+`,
+    expectedOutput:   "3, 5, 1, 8\n7, 2, 10",
+    expectedOutputJS: "3, 5, 1, 8\n7, 2, 10",
+    songName: "TBD",
+    requiredFeatures: ["functions"],
+    hint: "Sort using a custom comparator: compare abs(a-target) vs abs(b-target) first, then a vs b if those are equal.",
+    editorHeight: "380px",
+    callTemplate: "sortByDistance({args})",
+    hiddenTests: [
+      { args: [[], 3],              expected: [] },
+      { args: [[0,0,0], 0],         expected: [0,0,0] },
+      { args: [[-5,5], 0],          expected: [-5,5] },
+      { args: [[1,2,3,4,5], 3],     expected: [3,2,4,1,5] },
+      { args: [[100,-100], 0],      expected: [-100,100] },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 25 },
+      { key: "no_syntax_error",   layer: "chords", weight: 25 },
+      { key: "correct_output",    layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Clarity",        color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Precision",      color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_distance_sort_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_distance_sort_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_distance_sort_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_distance_sort_melody.mp3", broken: true },
+    },
+  },
+  {
+    id: 13,
+    order: 130,
+    title: "Level — Stacked Signal",
+    locked: true,
+    password: "TBD",
+    challenge: "Complete the isBalanced function.\n\nGiven a string of brackets ( ) [ ] { }, return True if every bracket is properly opened and closed in the right order, False otherwise.",
+    examples: [
+      { input: 'isBalanced("()[]{}")', output: "True"  },
+      { input: 'isBalanced("(]")',     output: "False" },
+      { input: 'isBalanced("([{}])")', output: "True"  },
+    ],
+    description: "Every signal opened must close in order — nothing left hanging, nothing closed too soon.",
+    type: "complete",
+    starterCode:
+`def isBalanced(s):
+    # Complete this function using a stack (a list works as one)
+    # Return True if all brackets are properly matched, False otherwise
+    pass
+ 
+# Public test runner — do not modify
+print(isBalanced("()[]{}"))
+print(isBalanced("(]"))
+print(isBalanced("([{}])"))
+`,
+    starterCodeJS:
+`function isBalanced(s) {
+    // Complete this function using a stack (an array works as one)
+    // Return true if all brackets are properly matched, false otherwise
+}
+ 
+// Public test runner — do not modify
+console.log(isBalanced("()[]{}"));
+console.log(isBalanced("(]"));
+console.log(isBalanced("([{}])"));
+`,
+    expectedOutput:   "True\nFalse\nTrue",
+    expectedOutputJS: "true\nfalse\ntrue",
+    songName: "TBD",
+    requiredFeatures: ["functions", "conditions"],
+    hint: "Push opening brackets onto a stack. On a closing bracket, pop the stack and check it matches — if not, or the stack's empty, it's unbalanced.",
+    editorHeight: "380px",
+    callTemplate: "isBalanced({args})",
+    hiddenTests: [
+      { args: [""],       expected: true  },
+      { args: ["("],      expected: false },
+      { args: ["]"],      expected: false },
+      { args: ["({[]})"], expected: true  },
+      { args: ["(()"],    expected: false },
+      { args: ["()()()"], expected: true  },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 20 },
+      { key: "conditions",        layer: "chords", weight: 20 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 40 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)"  },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_stacked_signal_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_stacked_signal_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_stacked_signal_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_stacked_signal_melody.mp3", broken: true },
+    },
+  },
+   {
+    id: 14,
+    order: 140,
+    isBoss: true,
+    title: "BOSS — Signal Depth",
+    locked: true,
+    password: "TBD",
+    challenge: "Complete isBalanced, maxDepth (recursive), and rankSignals.\n\nGiven a list of strings made of only '(' and ')', keep only the balanced ones, then sort them by nesting depth (deepest first). On a tie, sort alphabetically. Return them comma-joined.",
+    examples: [
+      { input: 'rankSignals(["(())","()()","((()))","("])', output: "((())), (()), ()()" },
+      { input: 'rankSignals(["()", "(())", "()()"])',        output: "(()), (), ()()" },
+    ],
+    description: "Not every signal survives the stack. Of those that do, only depth decides who leads.",
+    type: "complete",
+    starterCode:
+`def isBalanced(s):
+    # Stack/counter-based: return True if parentheses are balanced
+    pass
+
+def maxDepth(s, i=0, depth=0, best=0):
+    # RECURSIVE: return the deepest nesting level reached in s
+    pass
+
+def rankSignals(strings):
+    # Keep only balanced strings, sort by maxDepth descending (ties: alphabetical)
+    # Return them comma-joined: "a, b, c"
+    pass
+
+# Public test runner — do not modify
+print(rankSignals(["(())", "()()", "((()))", "("]))
+print(rankSignals(["()", "(())", "()()"]))
+`,
+    starterCodeJS:
+`function isBalanced(s) {
+    // Stack/counter-based: return true if parentheses are balanced
+}
+
+function maxDepth(s, i, depth, best) {
+    // RECURSIVE: return the deepest nesting level reached in s
+    i = i || 0; depth = depth || 0; best = best || 0;
+}
+
+function rankSignals(strings) {
+    // Keep only balanced strings, sort by maxDepth descending (ties: alphabetical)
+    // Return them comma-joined: "a, b, c"
+}
+
+// Public test runner — do not modify
+console.log(rankSignals(["(())", "()()", "((()))", "("]));
+console.log(rankSignals(["()", "(())", "()()"]));
+`,
+    expectedOutput:   "((())), (()), ()()\n(()), (), ()()",
+    expectedOutputJS: "((())), (()), ()()\n(()), (), ()()",
+    songName: "TBD",
+    requiredFeatures: ["functions", "conditions", "recursion"],
+    hint: "isBalanced: track an open-count, never let it go negative, end at zero. maxDepth: recurse one character at a time, tracking current depth and the best seen so far.",
+    editorHeight: "460px",
+    callTemplate: "rankSignals({args})",
+    hiddenTests: [
+      { args: [[]], expected: "" },
+      { args: [["(((())))", "((()))", "(())"]], expected: "(((()))), ((())), (())" },
+      { args: [["()", ")("]], expected: "()" },
+      { args: [["(())", "()(())"]], expected: "(()), ()(())" },
+    ],
+    criteria: [
+      { key: "functions",         layer: "drums",  weight: 15 },
+      { key: "conditions",        layer: "chords", weight: 15 },
+      { key: "no_syntax_error",   layer: "bass",   weight: 15 },
+      { key: "correct_output",    layer: "melody", weight: 25 },
+      { key: "all_hidden_passed", layer: "lead",   weight: 30 },
+    ],
+    layerDisplay: {
+      drums:  { label: "DRUMS",  desc: "Structure",      color: "var(--accent-cyan)"   },
+      chords: { label: "CHORDS", desc: "Logic",          color: "var(--accent-purple)" },
+      bass:   { label: "BASS",   desc: "Clarity",        color: "var(--accent-pink)"   },
+      melody: { label: "MELODY", desc: "Correctness",    color: "var(--accent-green)"  },
+      lead:   { label: "LEAD",   desc: "All tests pass", color: "#ffd166"               },
+    },
+    layers: {
+      drums:  { src: "/audio/PLACEHOLDER_boss2_drums.mp3",  broken: true },
+      chords: { src: "/audio/PLACEHOLDER_boss2_chords.mp3", broken: true },
+      bass:   { src: "/audio/PLACEHOLDER_boss2_bass.mp3",   broken: true },
+      melody: { src: "/audio/PLACEHOLDER_boss2_melody.mp3", broken: true },
+      lead:   { src: "/audio/PLACEHOLDER_boss2_lead.mp3",   broken: true },
+    },
+  },{
+    id: 15, 
+    order: 150, title: "Level — Tree Echo", locked: true, 
+    password: "TBD",
+    challenge: "Complete inorder.\n\nGiven a binary tree as nested objects ({val,left,right}, or null), return its in-order traversal values comma-joined.",
+    examples: [
+      { input: '{val:2,left:{val:1},right:{val:3}}', output: "1,2,3" },
+    ],
+    description: "Left. Root. Right. The tree speaks in order, one branch at a time.",
+    type: "complete",
+    starterCode: `def inorder(t):
+    # Complete this function (recursive)
+    # t is a dict {'val':..,'left':..,'right':..} or None
+    pass
+
+# Public test runner — do not modify
+print(",".join(str(x) for x in inorder({"val":2,"left":{"val":1},"right":{"val":3}})))
+print(",".join(str(x) for x in inorder({"val":5,"left":{"val":3,"left":{"val":1},"right":{"val":4}},"right":{"val":8}})))
+`,
+    starterCodeJS: `function inorder(t) {
+    // Complete this function (recursive)
+    // t is {val, left, right} or null
+}
+
+// Public test runner — do not modify
+console.log(inorder({val:2,left:{val:1},right:{val:3}}).join(","));
+console.log(inorder({val:5,left:{val:3,left:{val:1},right:{val:4}},right:{val:8}}).join(","));
+`,
+    expectedOutput: "1,2,3\n1,3,4,5,8", expectedOutputJS: "1,2,3\n1,3,4,5,8",
+    songName: "TBD", requiredFeatures: ["functions"],
+    hint: "Recurse left, add current val, recurse right. Base case: empty/null tree returns [].",
+    editorHeight: "380px", callTemplate: "inorder({args})",
+    hiddenTests: [
+      { args: [null], expected: [] },
+      { args: [{val:9}], expected: [9] },
+    ],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 25 },
+      { key: "no_syntax_error", layer: "chords", weight: 25 },
+      { key: "correct_output", layer: "bass", weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Clarity", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Precision", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_tree_echo_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_tree_echo_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_tree_echo_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_tree_echo_melody.mp3", broken: true },
+    },
+  },
+  {
+    id: 16, 
+    order: 160, 
+    title: "Level — Graph Pulse", locked: true, 
+    password: "TBD",
+    challenge: "Complete bfs.\n\nGiven a graph as an adjacency dict/object (node -> list of neighbors) and a start node, return the BFS visit order, comma-joined.",
+    examples: [{ input: 'bfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a")', output: "a,b,c,d" }],
+    description: "One pulse ripples outward, node by node, never doubling back.",
+    type: "complete",
+    starterCode: `def bfs(g, start):
+    # Complete this function using BFS (queue-based)
+    # g is a dict: node -> list of neighbor nodes
+    pass
+ 
+# Public test runner — do not modify
+print(",".join(bfs({"a":["b","c"],"b":["d"],"c":["d"],"d":[]}, "a")))
+print(",".join(bfs({"x":[]}, "x")))
+`,
+    starterCodeJS: `function bfs(g, start) {
+    // Complete this function using BFS (queue-based)
+    // g is an object: node -> array of neighbor nodes
+}
+ 
+// Public test runner — do not modify
+console.log(bfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a").join(","));
+console.log(bfs({x:[]}, "x").join(","));
+`,
+    expectedOutput: "a,b,c,d\nx", expectedOutputJS: "a,b,c,d\nx",
+    songName: "TBD", requiredFeatures: ["functions", "loops"],
+    hint: "Use a queue: start with [start], pop from the front, visit it, push any unvisited neighbors to the back.",
+    editorHeight: "380px", callTemplate: "bfs({args})",
+    hiddenTests: [{ args: [{a:["b"],b:["a"]}, "a"], expected: ["a","b"] }],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 25 },
+      { key: "loops", layer: "chords", weight: 25 },
+      { key: "no_syntax_error", layer: "bass", weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Iteration", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Clarity", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_graph_pulse_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_graph_pulse_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_graph_pulse_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_graph_pulse_melody.mp3", broken: true },
+    },
+  },
+  //shouldnt we add a dfs function too to the level 16?????????????????
+   {
+    id: 17, order: 165, title: "Level — Deep Pulse", locked: true, password: "TBD",
+    challenge: "Complete dfs.\n\nGiven a graph (node -> list of neighbors) and a start node, return the DFS visit order, comma-joined.",
+    examples: [{ input: 'dfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a")', output: "a,b,d,c" }],
+    description: "One path, followed all the way down, before another begins.",
+    type: "complete",
+    starterCode: `def dfs(g, start, seen=None):
+    # Complete this function using DFS (recursion)
+    pass
+
+# Public test runner — do not modify
+print(",".join(dfs({"a":["b","c"],"b":["d"],"c":["d"],"d":[]}, "a")))
+print(",".join(dfs({"x":[]}, "x")))
+`,
+    starterCodeJS: `function dfs(g, start, seen) {
+    // Complete this function using DFS (recursion)
+    seen = seen || new Set();
+}
+
+// Public test runner — do not modify
+console.log(dfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a").join(","));
+console.log(dfs({x:[]}, "x").join(","));
+`,
+    expectedOutput: "a,b,d,c\nx", expectedOutputJS: "a,b,d,c\nx",
+    songName: "TBD", requiredFeatures: ["functions"],
+    hint: "Visit start, mark it seen, then recurse into each unvisited neighbor before returning.",
+    editorHeight: "380px", callTemplate: "dfs({args})",
+    hiddenTests: [{ args: [{a:["b"],b:["a"]}, "a"], expected: ["a","b"] }],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 25 },
+      { key: "no_syntax_error", layer: "chords", weight: 25 },
+      { key: "correct_output", layer: "bass", weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 30 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Clarity", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Precision", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_deep_pulse_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_deep_pulse_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_deep_pulse_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_deep_pulse_melody.mp3", broken: true },
+    },
+  },
+  {
+    id: 18, order: 170, title: "Level — Pair Match", locked: true, password: "TBD",
+    challenge: "Complete twoSum.\n\nGiven a list of integers and a target, return the indices [i,j] of the two numbers that add up to target. Return [] if none found.",
+    examples: [
+      { input: "twoSum([2,7,11,15], 9)", output: "0,1" },
+      { input: "twoSum([3,2,4], 6)",     output: "1,2" },
+    ],
+    description: "Two signals, one sum. Find the pair before scanning twice.",
+    type: "complete",
+    starterCode: `def twoSum(nums, target):
+    # Complete this function using a dict for O(n) lookup
+    # Return [i, j] (indices) or [] if no pair found
+    pass
+
+# Public test runner — do not modify
+print(",".join(str(x) for x in twoSum([2, 7, 11, 15], 9)))
+print(",".join(str(x) for x in twoSum([3, 2, 4], 6)))
+`,
+    starterCodeJS: `function twoSum(nums, target) {
+    // Complete this function using an object for O(n) lookup
+    // Return [i, j] (indices) or [] if no pair found
+}
+
+// Public test runner — do not modify
+console.log(twoSum([2, 7, 11, 15], 9).join(","));
+console.log(twoSum([3, 2, 4], 6).join(","));
+`,
+    expectedOutput: "0,1\n1,2", expectedOutputJS: "0,1\n1,2",
+    songName: "TBD", requiredFeatures: ["functions", "conditions"],
+    hint: "As you loop, store each number's index in a dict. Before storing, check if (target - current) is already in the dict.",
+    editorHeight: "380px", callTemplate: "twoSum({args})",
+    hiddenTests: [
+      { args: [[1,1], 2],  expected: [0,1] },
+      { args: [[1,2], 10], expected: []    },
+    ],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 20 },
+      { key: "conditions", layer: "chords", weight: 20 },
+      { key: "no_syntax_error", layer: "bass", weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 40 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Logic", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Clarity", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_pair_match_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_pair_match_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_pair_match_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_pair_match_melody.mp3", broken: true },
+    },
+  },
 
 ];
 

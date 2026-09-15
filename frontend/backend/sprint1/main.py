@@ -119,6 +119,49 @@ LEVEL_CRITERIA = {
         {"key": "no_syntax_error",   "layer": "bass",   "weight": 20},
         {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
     ],
+    12: [
+        {"key": "functions",         "layer": "drums",  "weight": 25},
+        {"key": "no_syntax_error",   "layer": "chords", "weight": 25},
+        {"key": "correct_output",    "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+     13: [
+        {"key": "functions",         "layer": "drums",  "weight": 20},
+        {"key": "conditions",        "layer": "chords", "weight": 20},
+        {"key": "no_syntax_error",   "layer": "bass",   "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
+    ],
+     14: [
+        {"key": "functions",         "layer": "drums",  "weight": 15},
+        {"key": "conditions",        "layer": "chords", "weight": 15},
+        {"key": "no_syntax_error",   "layer": "bass",   "weight": 15},
+        {"key": "correct_output",    "layer": "melody", "weight": 25},
+        {"key": "all_hidden_passed", "layer": "lead",   "weight": 30},
+    ],
+     15: [
+        {"key": "functions", "layer": "drums", "weight": 25},
+        {"key": "no_syntax_error", "layer": "chords", "weight": 25},
+        {"key": "correct_output", "layer": "bass", "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+     16: [
+        {"key": "functions", "layer": "drums", "weight": 25},
+        {"key": "loops", "layer": "chords", "weight": 25},
+        {"key": "no_syntax_error", "layer": "bass", "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+     17: [
+        {"key": "functions", "layer": "drums", "weight": 25},
+        {"key": "no_syntax_error", "layer": "chords", "weight": 25},
+        {"key": "correct_output", "layer": "bass", "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 30},
+    ],
+     18: [
+        {"key": "functions", "layer": "drums", "weight": 20},
+        {"key": "conditions", "layer": "chords", "weight": 20},
+        {"key": "no_syntax_error", "layer": "bass", "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
+    ],
 }
 
 LEVEL_HIDDEN_TESTS = {
@@ -233,6 +276,56 @@ LEVEL_HIDDEN_TESTS = {
             {"args": [[1,2,3,4,5,6,7,8], 8], "expected": 7},
         ],
     },
+     12: {
+        "callTemplate": {"python": "sortByDistance({args})", "javascript": "sortByDistance({args})"},
+        "tests": [
+            {"args": [[], 3],          "expected": []},
+            {"args": [[0,0,0], 0],     "expected": [0,0,0]},
+            {"args": [[-5,5], 0],      "expected": [-5,5]},
+            {"args": [[1,2,3,4,5], 3], "expected": [3,2,4,1,5]},
+            {"args": [[100,-100], 0],  "expected": [-100,100]},
+        ],
+    },
+    13: {
+        "callTemplate": {"python": "isBalanced({args})", "javascript": "isBalanced({args})"},
+        "tests": [
+            {"args": [""],       "expected": True},
+            {"args": ["("],      "expected": False},
+            {"args": ["]"],      "expected": False},
+            {"args": ["({[]})"], "expected": True},
+            {"args": ["(()"],    "expected": False},
+            {"args": ["()()()"], "expected": True},
+        ],
+    },
+    14: {
+        "callTemplate": {"python": "rankSignals({args})", "javascript": "rankSignals({args})"},
+        "tests": [
+            {"args": [[]], "expected": ""},
+            {"args": [["(((())))", "((()))", "(())"]], "expected": "(((()))), ((())), (())"},
+            {"args": [["()", ")("]], "expected": "()"},
+            {"args": [["(())", "()(())"]], "expected": "(()), ()(())"},
+        ],
+    },
+    15: {
+        "callTemplate": {"python": "inorder({args})", "javascript": "inorder({args})"},
+        "tests": [{"args": [None], "expected": []}, {"args": [{"val": 9}], "expected": [9]}],
+    },
+    16: {
+        "callTemplate": {"python": "bfs({args})", "javascript": "bfs({args})"},
+        "tests": [{"args": [{"a": ["b"], "b": ["a"]}, "a"], "expected": ["a", "b"]}],
+    },
+    17: {
+        "callTemplate": {"python": "dfs({args})", "javascript": "dfs({args})"},
+        "tests": [{"args": [{"a": ["b"], "b": ["a"]}, "a"], "expected": ["a", "b"]}],
+    },
+     18: {
+        "callTemplate": {"python": "twoSum({args})", "javascript": "twoSum({args})"},
+        "tests": [
+            {"args": [[1, 1], 2],  "expected": [0, 1]},
+            {"args": [[1, 2], 10], "expected": []},
+        ],
+    },
+    
 
 }
 
