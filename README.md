@@ -1,60 +1,93 @@
-# 🎵 Codio — Where Code Meets Sound
+<div align="center">
+  <img src="https://img.shields.io/badge/Codio-Code%20Meets%20Sound-0A0F1C?style=for-the-badge&logo=code" alt="Codio" />
+  <h1><img src="https://img.shields.io/badge/🎵-Codio-00F5FF?style=flat-square" alt="Codio logo" /> Codio</h1>
+  <p>
+    <strong>Code. Jam. Sync.</strong>
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
+    <img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite" alt="Vite 8" />
+    <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python" alt="Python" />
+    <img src="https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
+    <img src="https://img.shields.io/badge/License-MIT-00FF9C?style=flat-square" alt="MIT License" />
+  </p>
+</div>
 
-> An interactive web-based educational platform that transforms programming into a real-time musical experience.
-
-![Codio](https://img.shields.io/badge/version-0.1.0--alpha-blueviolet?style=flat-square)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite)
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+<p align="center">
+  A cyberpunk coding game where every solution is turned into rhythm, logic, and harmony.
+</p>
 
 ---
 
 ## Overview
 
-Codio is a gamified coding platform where your code becomes music. Players move through a sequence of programming challenges, write and test solutions, and receive a harmony score based on code structure, correctness, and hidden validation.
+Codio is a browser-based programming challenge game where players solve coding tasks, submit their answers, and get instant feedback through a harmony scoring system.
 
-The project combines:
+Instead of a normal judge, the app turns your code into a layered soundscape:
 
-- a Vite + React frontend for the gameplay experience
-- a Python FastAPI backend for execution and scoring
-- a level system with passwords, progression, and challenge metadata
-- a harmony-model scoring pipeline for evaluating code quality
+- loops drive the drums
+- conditions shape the chords
+- functions anchor the bass
+- correctness and hidden tests complete the melody
 
----
-
-## What the app does
-
-Each level presents a programming challenge in a browser-based editor. The user writes a solution in Python or JavaScript, submits it, and the backend analyzes:
-
-- syntax validity
-- loop and condition usage
-- function presence
-- runtime correctness
-- hidden test pass/fail conditions
-
-The evaluated result is translated into a harmony score and layered visual/audio feedback.
+The result is a game-like coding experience with progression, challenge unlocks, and a dark neon sci-fi aesthetic.
 
 ---
 
-## Tech stack
+## Why it feels different
+
+Codio blends classic coding practice with game feedback:
+
+- write code in a browser editor
+- execute and validate it on the backend
+- review syntax and runtime output
+- score your result against level criteria
+- unlock new challenge states with passwords and progression
+
+This creates a learning loop that feels more like a rhythm-based puzzle than a plain coding exercise.
+
+---
+
+## Feature highlights
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <h3>🎮 Game-driven progression</h3>
+      <p>Levels unlock through challenge flow, password gates, and nested problem progression.</p>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <h3>🧠 Code analysis</h3>
+      <p>Python and JavaScript submissions are checked for structure, logic, syntax, and hidden behavior.</p>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <h3>🎵 Harmony scoring</h3>
+      <p>Correct solutions push the layers into sync and reveal the soundtrack of a level.</p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## Stack
 
 ### Frontend
+
 - React 19
 - Vite
-- Monaco-style editor experience via `@monaco-editor/react`
-- xTerm integration for terminal-style feedback
-- Axios for API calls
-- CSS-based game interface
+- `@monaco-editor/react`
+- `@xterm/xterm`
+- Axios
+- CSS-driven cyberpunk UI
 
 ### Backend
+
 - Python 3.12
 - FastAPI
-- `ast` parsing for Python code analysis
-- Node-based JavaScript analysis fallback
-- `subprocess` execution for code validation
-- joblib + scikit-learn model artifacts for harmony scoring
+- AST-based Python analysis
+- JavaScript validation via Node
+- `subprocess` execution sandbox
+- joblib + scikit-learn model artifacts
 
 ---
 
@@ -111,56 +144,57 @@ Codio/
 
 ---
 
-## Frontend app flow
+## App flow
 
-The frontend is organized around a screen-based flow:
+The application is built around a small state-driven screen flow:
 
 1. Landing screen
-2. Level selection screen
-3. Active challenge screen
+2. Level selection menu
+3. Active coding challenge screen
 
-The main app state is managed in `frontend/src/App.jsx`, which switches between these screens and passes the currently selected level into the gameplay view.
+The main screen routing is centralized in `frontend/src/App.jsx`, while the level definitions and challenge data live in `frontend/src/data/levels.js`.
 
 ---
 
-## Backend behavior
+## Backend logic
 
-The primary backend service lives in `frontend/backend/sprint1/main.py` and exposes the following API endpoints:
+The core service lives in `frontend/backend/sprint1/main.py` and includes:
 
 - `POST /run-code`
-  - runs submitted code
-  - returns stdout/stderr output
-  - performs basic AST-based analysis
+  - executes submitted code
+  - checks output and syntax errors
+  - returns runtime analysis
 
 - `POST /analyze-code`
-  - runs code against expected output
-  - checks hidden tests for the level
-  - calculates harmony score from criteria
+  - validates correctness
+  - runs hidden tests for each level
+  - computes harmony score from criteria
   - returns per-layer score state
 
-The backend uses level-specific rules from `LEVEL_CRITERIA` and `LEVEL_HIDDEN_TESTS`, so scoring is driven by the server rather than by stale client-side assumptions.
+This backend is the authoritative scoring source, which keeps evaluation consistent even as the frontend changes.
 
 ---
 
 ## Level system
 
-Levels are defined in `frontend/src/data/levels.js` and include:
+Each challenge includes:
 
-- unique IDs and ordering
-- challenge names and descriptions
-- starter code for Python and JavaScript
-- expected outputs
-- validation criteria
+- challenge text and examples
+- starter code for Python/JS
+- expected output
+- hidden tests
+- required structural features
 - password progression metadata
-- layer display and soundtrack references
+- layer-specific scoring criteria
 
-The project includes progression-based gameplay with hidden task validation and “song password” mechanics.
+This keeps the game progression aligned with the actual challenge difficulty and hidden logic checks.
 
 ---
 
-## Setup
+## Local setup
 
 ### Prerequisites
+
 - Node.js 18+
 - Python 3.12+
 - npm
@@ -174,7 +208,7 @@ npm install
 npm run dev
 ```
 
-The frontend runs at:
+Open:
 
 ```text
 http://localhost:5173
@@ -189,19 +223,19 @@ source venv/bin/activate
 pip install fastapi uvicorn scikit-learn joblib numpy
 ```
 
-Train the harmony model if needed:
+Train the model if needed:
 
 ```bash
 python train_model.py
 ```
 
-Then start the API:
+Run the API:
 
 ```bash
 python -m uvicorn main:app --reload
 ```
 
-The backend runs at:
+Open:
 
 ```text
 http://127.0.0.1:8000
@@ -211,9 +245,9 @@ http://127.0.0.1:8000
 
 ## Notes
 
-- The active backend in this repository is under `frontend/backend/sprint1`, not at the repo root.
-- Audio assets are stored in `frontend/public/audio/` and are used as the layer soundtrack references for the game.
-- The project is currently a gameplay prototype with educational algorithm challenges, hidden tests, and music-inspired scoring.
+- The active backend is located under `frontend/backend/sprint1`.
+- Audio and static assets live in `frontend/public/`.
+- The project is a prototype game with music-inspired feedback, level progression, and algorithmic challenge logic.
 
 ---
 
@@ -225,4 +259,4 @@ MIT License
 
 ## Project summary
 
-Codio is an educational coding game that turns code writing into a harmonic challenge. It blends frontend interactivity, backend validation, and game-based progression to create a playful learning loop where correctness and structure both matter.
+Codio turns problem-solving into a neon-lit coding challenge. It blends a modern React interface, a FastAPI validation layer, and a harmony-based scoring model to make code practice feel immersive, interactive, and rewarding.
