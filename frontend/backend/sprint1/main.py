@@ -162,6 +162,19 @@ LEVEL_CRITERIA = {
         {"key": "no_syntax_error", "layer": "bass", "weight": 20},
         {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
     ],
+     19: [
+        {"key": "functions", "layer": "drums", "weight": 20},
+        {"key": "conditions", "layer": "chords", "weight": 20},
+        {"key": "no_syntax_error", "layer": "bass", "weight": 20},
+        {"key": "all_hidden_passed", "layer": "melody", "weight": 40},
+    ],
+     20: [
+        {"key": "functions", "layer": "drums", "weight": 15},
+        {"key": "conditions", "layer": "chords", "weight": 15},
+        {"key": "no_syntax_error", "layer": "bass", "weight": 15},
+        {"key": "correct_output", "layer": "melody", "weight": 25},
+        {"key": "all_hidden_passed", "layer": "lead", "weight": 30},
+    ],
 }
 
 LEVEL_HIDDEN_TESTS = {
@@ -323,6 +336,21 @@ LEVEL_HIDDEN_TESTS = {
         "tests": [
             {"args": [[1, 1], 2],  "expected": [0, 1]},
             {"args": [[1, 2], 10], "expected": []},
+        ],
+    },
+     19: {
+        "callTemplate": {"python": "climb({args})", "javascript": "climb({args})"},
+        "tests": [
+            {"args": [0],  "expected": 0},
+            {"args": [1],  "expected": 1},
+            {"args": [10], "expected": 89},
+        ],
+    },
+     20: {
+        "callTemplate": {"python": "networkSummary({args})", "javascript": "networkSummary({args})"},
+        "tests": [
+            {"args": [{"a": ["b"], "b": ["a"]}, "a"], "expected": "farthest: b, hops: 1"},
+            {"args": [{"a": ["b", "c"], "b": [], "c": []}, "a"], "expected": "farthest: b, hops: 1"},
         ],
     },
     

@@ -84,7 +84,7 @@ console.log(formatReport("Cy", 19, 100));
     expectedOutput:   "Name: Alice, Age: 30, Score: 92.50\nName: Bob, Age: 22, Score: 75.00\nName: Cy, Age: 19, Score: 100.00",
     expectedOutputJS: "Name: Alice, Age: 30, Score: 92.50\nName: Bob, Age: 22, Score: 75.00\nName: Cy, Age: 19, Score: 100.00",
     songName: "Lone Signal",
-    requiredFeatures: ["functions"],
+    requiredFeatures: ["functions", "strings"],
     hint: "Use an f-string in Python (f\"...{value:.2f}\") or toFixed(2) in JavaScript to format the score.",
     editorHeight: "380px",
     callTemplate: "formatReport({args})",
@@ -161,7 +161,7 @@ console.log(isPalindrome(10));
     expectedOutput:   "True\nFalse\nFalse",
     expectedOutputJS: "true\nfalse\nfalse",
     songName: "16 PUNKS",
-    requiredFeatures: ["functions", "conditions"],
+    requiredFeatures: ["functions", "strings"],
     hint: "Convert x to a string and compare it to its reverse. Negative numbers are never palindromes.",
     editorHeight: "380px",
     callTemplate: "Solution().isPalindrome({args})",
@@ -237,7 +237,7 @@ console.log(sumEven([2, 4, 6, 8]));
     expectedOutputJS: "6\n0\n20",
     // ── Preserved exactly: this is your real song name, NOT "NEON TOMORROW" ──
     songName: "Static Tomorrow",
-    requiredFeatures: ["loops", "conditions"],
+    requiredFeatures: ["loops", "lists"],
     hint: "Loop through the list and check if each number is divisible by 2 using the % operator.",
     editorHeight: "380px",
     callTemplate: "sumEven({args})",
@@ -702,7 +702,7 @@ console.log(fib(7));
     expectedOutput:   "0\n5\n13",
     expectedOutputJS: "0\n5\n13",
     songName: "TBD",
-    requiredFeatures: ["functions", "conditions"],
+    requiredFeatures: ["functions", "recursion"],
     hint: "Base case: if n is 0 or 1, return n. Otherwise, return fib(n-1) + fib(n-2).",
     editorHeight: "380px",
     callTemplate: "fib({args})",
@@ -770,7 +770,7 @@ console.log(compress(""));
     expectedOutput:   "a3b2c1\na1b1c1\n",
     expectedOutputJS: "a3b2c1\na1b1c1\n",
     songName: "TBD",
-    requiredFeatures: ["functions", "loops"],
+    requiredFeatures: ["functions", "strings"],
     hint: "Walk through the string, counting how many times each character repeats in a row before it changes.",
     editorHeight: "380px",
     callTemplate: "compress({args})",
@@ -839,7 +839,7 @@ console.log(binarySearch([1, 3, 5, 7, 9], 4));
     expectedOutput:   "2\n0\n-1",
     expectedOutputJS: "2\n0\n-1",
     songName: "TBD",
-    requiredFeatures: ["functions", "loops", "conditions"],
+    requiredFeatures: ["functions", "searching"],
     hint: "Keep low/high pointers. Check the middle element: if it's too small, search the right half; too big, search the left half.",
     editorHeight: "380px",
     callTemplate: "binarySearch({args})",
@@ -905,7 +905,7 @@ console.log(sortByDistance([10, 2, 7], 5).join(", "));
     expectedOutput:   "3, 5, 1, 8\n7, 2, 10",
     expectedOutputJS: "3, 5, 1, 8\n7, 2, 10",
     songName: "TBD",
-    requiredFeatures: ["functions"],
+    requiredFeatures: ["functions", "sorting"],
     hint: "Sort using a custom comparator: compare abs(a-target) vs abs(b-target) first, then a vs b if those are equal.",
     editorHeight: "380px",
     callTemplate: "sortByDistance({args})",
@@ -974,7 +974,7 @@ console.log(isBalanced("([{}])"));
     expectedOutput:   "True\nFalse\nTrue",
     expectedOutputJS: "true\nfalse\ntrue",
     songName: "TBD",
-    requiredFeatures: ["functions", "conditions"],
+    requiredFeatures: ["functions", "stacks"],
     hint: "Push opening brackets onto a stack. On a closing bracket, pop the stack and check it matches — if not, or the stack's empty, it's unbalanced.",
     editorHeight: "380px",
     callTemplate: "isBalanced({args})",
@@ -1059,7 +1059,7 @@ console.log(rankSignals(["()", "(())", "()()"]));
     expectedOutput:   "((())), (()), ()()\n(()), (), ()()",
     expectedOutputJS: "((())), (()), ()()\n(()), (), ()()",
     songName: "TBD",
-    requiredFeatures: ["functions", "conditions", "recursion"],
+    requiredFeatures: ["functions", "recursion", "stacks"],
     hint: "isBalanced: track an open-count, never let it go negative, end at zero. maxDepth: recurse one character at a time, tracking current depth and the best seen so far.",
     editorHeight: "460px",
     callTemplate: "rankSignals({args})",
@@ -1119,7 +1119,7 @@ console.log(inorder({val:2,left:{val:1},right:{val:3}}).join(","));
 console.log(inorder({val:5,left:{val:3,left:{val:1},right:{val:4}},right:{val:8}}).join(","));
 `,
     expectedOutput: "1,2,3\n1,3,4,5,8", expectedOutputJS: "1,2,3\n1,3,4,5,8",
-    songName: "TBD", requiredFeatures: ["functions"],
+    songName: "TBD", requiredFeatures: ["functions", "trees"],
     hint: "Recurse left, add current val, recurse right. Base case: empty/null tree returns [].",
     editorHeight: "380px", callTemplate: "inorder({args})",
     hiddenTests: [
@@ -1173,7 +1173,7 @@ console.log(bfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a").join(","));
 console.log(bfs({x:[]}, "x").join(","));
 `,
     expectedOutput: "a,b,c,d\nx", expectedOutputJS: "a,b,c,d\nx",
-    songName: "TBD", requiredFeatures: ["functions", "loops"],
+    songName: "TBD", requiredFeatures: ["functions", "graphs"],
     hint: "Use a queue: start with [start], pop from the front, visit it, push any unvisited neighbors to the back.",
     editorHeight: "380px", callTemplate: "bfs({args})",
     hiddenTests: [{ args: [{a:["b"],b:["a"]}, "a"], expected: ["a","b"] }],
@@ -1221,7 +1221,7 @@ console.log(dfs({a:["b","c"],b:["d"],c:["d"],d:[]}, "a").join(","));
 console.log(dfs({x:[]}, "x").join(","));
 `,
     expectedOutput: "a,b,d,c\nx", expectedOutputJS: "a,b,d,c\nx",
-    songName: "TBD", requiredFeatures: ["functions"],
+    songName: "TBD", requiredFeatures: ["functions", "graphs", "recursion"],
     hint: "Visit start, mark it seen, then recurse into each unvisited neighbor before returning.",
     editorHeight: "380px", callTemplate: "dfs({args})",
     hiddenTests: [{ args: [{a:["b"],b:["a"]}, "a"], expected: ["a","b"] }],
@@ -1272,7 +1272,7 @@ console.log(twoSum([2, 7, 11, 15], 9).join(","));
 console.log(twoSum([3, 2, 4], 6).join(","));
 `,
     expectedOutput: "0,1\n1,2", expectedOutputJS: "0,1\n1,2",
-    songName: "TBD", requiredFeatures: ["functions", "conditions"],
+    songName: "TBD", requiredFeatures: ["functions", "hashmaps"],
     hint: "As you loop, store each number's index in a dict. Before storing, check if (target - current) is already in the dict.",
     editorHeight: "380px", callTemplate: "twoSum({args})",
     hiddenTests: [
@@ -1298,6 +1298,142 @@ console.log(twoSum([3, 2, 4], 6).join(","));
       melody: { src: "/audio/PLACEHOLDER_pair_match_melody.mp3", broken: true },
     },
   },
+  {
+    id: 19, order: 180, title: "Level — Step Memory", locked: true, password: "TBD",
+    challenge: "Complete climb.\n\nGiven n stairs, where each step takes 1 or 2 stairs at a time, return the number of distinct ways to reach the top. Use memoization.",
+    examples: [
+      { input: "climb(2)", output: "2" },
+      { input: "climb(3)", output: "3" },
+      { input: "climb(5)", output: "8" },
+    ],
+    description: "Some paths repeat themselves. Remember what you've already climbed.",
+    type: "complete",
+    starterCode: `def climb(n, memo=None):
+    # Complete this function using memoization
+    # climb(0)=0, climb(1)=1, climb(2)=2
+    memo = memo or {}
+    pass
+ 
+# Public test runner — do not modify
+print(climb(2))
+print(climb(3))
+print(climb(5))
+`,
+    starterCodeJS: `function climb(n, memo) {
+    // Complete this function using memoization
+    // climb(0)=0, climb(1)=1, climb(2)=2
+    memo = memo || {};
+}
+ 
+// Public test runner — do not modify
+console.log(climb(2));
+console.log(climb(3));
+console.log(climb(5));
+`,
+    expectedOutput: "2\n3\n8", expectedOutputJS: "2\n3\n8",
+    songName: "TBD", requiredFeatures: ["functions", "dynamic-programming"],
+    hint: "climb(n) = climb(n-1) + climb(n-2). Store each result in memo before returning it, and check memo first.",
+    editorHeight: "380px", callTemplate: "climb({args})",
+    hiddenTests: [
+      { args: [0],  expected: 0  },
+      { args: [1],  expected: 1  },
+      { args: [10], expected: 89 },
+    ],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 20 },
+      { key: "conditions", layer: "chords", weight: 20 },
+      { key: "no_syntax_error", layer: "bass", weight: 20 },
+      { key: "all_hidden_passed", layer: "melody", weight: 40 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Logic", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Clarity", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "All tests pass", color: "var(--accent-green)" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_step_memory_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_step_memory_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_step_memory_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_step_memory_melody.mp3", broken: true },
+    },
+  },
+
+  {
+    id: 20, 
+    order: 190, 
+    isBoss: true, 
+    title: "FINAL BOSS — Network Core", locked: true, 
+    password: "TBD",
+    challenge: "Complete buildDistances, findFarthest, and networkSummary.\n\nGiven a graph (node -> list of neighbors) and a start node:\n1. buildDistances: return a dict of shortest hop-count from start to every reachable node (BFS).\n2. findFarthest: given that dict, return the alphabetically-first node among those with the MAX distance.\n3. networkSummary: combine both — return \"farthest: X, hops: Y\".",
+    examples: [
+      { input: 'networkSummary({a:["b","c"],b:["d"],c:["d","e"],d:[],e:["f"],f:[]}, "a")', output: "farthest: f, hops: 3" },
+      { input: 'networkSummary({x:[]}, "x")', output: "farthest: x, hops: 0" },
+    ],
+    description: "The whole network answers to one question: how far does the signal truly reach, and who stands at the edge of it?",
+    type: "complete",
+    starterCode: `def buildDistances(g, start):
+    # BFS: return dict {node: shortest_hop_count_from_start}
+    pass
+
+def findFarthest(distances):
+    # Return the alphabetically-first node among those at max distance
+    pass
+
+def networkSummary(g, start):
+    # Combine the two above. Return "farthest: X, hops: Y"
+    pass
+
+# Public test runner — do not modify
+print(networkSummary({"a":["b","c"],"b":["d"],"c":["d","e"],"d":[],"e":["f"],"f":[]}, "a"))
+print(networkSummary({"x":[]}, "x"))
+`,
+    starterCodeJS: `function buildDistances(g, start) {
+    // BFS: return object {node: shortest_hop_count_from_start}
+}
+function findFarthest(distances) {
+    // Return the alphabetically-first node among those at max distance
+}
+function networkSummary(g, start) {
+    // Combine the two above. Return "farthest: X, hops: Y"
+}
+
+// Public test runner — do not modify
+console.log(networkSummary({a:["b","c"],b:["d"],c:["d","e"],d:[],e:["f"],f:[]}, "a"));
+console.log(networkSummary({x:[]}, "x"));
+`,
+    expectedOutput: "farthest: f, hops: 3\nfarthest: x, hops: 0",
+    expectedOutputJS: "farthest: f, hops: 3\nfarthest: x, hops: 0",
+    songName: "TBD", requiredFeatures: ["functions", "graphs", "conditions"],
+    hint: "buildDistances is plain BFS tracking hop count per node. findFarthest just needs the max value, then the smallest key among ties. networkSummary wires them together with an f-string/template literal.",
+    editorHeight: "480px", callTemplate: "networkSummary({args})",
+    hiddenTests: [
+      { args: [{"a":["b"],"b":["a"]}, "a"], expected: "farthest: b, hops: 1" },
+      { args: [{"a":["b","c"],"b":[],"c":[]}, "a"], expected: "farthest: b, hops: 1" },
+    ],
+    criteria: [
+      { key: "functions", layer: "drums", weight: 15 },
+      { key: "conditions", layer: "chords", weight: 15 },
+      { key: "no_syntax_error", layer: "bass", weight: 15 },
+      { key: "correct_output", layer: "melody", weight: 25 },
+      { key: "all_hidden_passed", layer: "lead", weight: 30 },
+    ],
+    layerDisplay: {
+      drums: { label: "DRUMS", desc: "Structure", color: "var(--accent-cyan)" },
+      chords: { label: "CHORDS", desc: "Logic", color: "var(--accent-purple)" },
+      bass: { label: "BASS", desc: "Clarity", color: "var(--accent-pink)" },
+      melody: { label: "MELODY", desc: "Correctness", color: "var(--accent-green)" },
+      lead: { label: "LEAD", desc: "All tests pass", color: "#ffd166" },
+    },
+    layers: {
+      drums: { src: "/audio/PLACEHOLDER_finalboss_drums.mp3", broken: true },
+      chords: { src: "/audio/PLACEHOLDER_finalboss_chords.mp3", broken: true },
+      bass: { src: "/audio/PLACEHOLDER_finalboss_bass.mp3", broken: true },
+      melody: { src: "/audio/PLACEHOLDER_finalboss_melody.mp3", broken: true },
+      lead: { src: "/audio/PLACEHOLDER_finalboss_lead.mp3", broken: true },
+    },
+  },
+
 
 ];
 
