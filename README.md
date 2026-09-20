@@ -3,111 +3,170 @@
 > An interactive web-based educational platform that transforms programming into a real-time musical experience.
 
 ![Codio](https://img.shields.io/badge/version-0.1.0--alpha-blueviolet?style=flat-square)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=flat-square&logo=scikit-learn)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 ---
 
-## 📖 What is Codio?
+## Overview
 
-Codio is a gamified coding platform where **your code becomes music**. Each level presents a programming challenge. As you write and execute your solution, the system analyzes its structure and maps programming constructs to musical audio layers in real time.
+Codio is a gamified coding platform where your code becomes music. Players move through a sequence of programming challenges, write and test solutions, and receive a harmony score based on code structure, correctness, and hidden validation.
 
-- ✅ Correct code with the right structure → music plays in full harmony
-- ⚠️ Partial or incorrect code → layers drift out of sync
-- ❌ Broken code → silence and distortion
+The project combines:
 
-The platform is inspired by [OverTheWire Bandit](https://overthewire.org/wargames/bandit/) for its level/password progression mechanic and [LeetCode](https://leetcode.com) for its challenge format.
-
----
-
-## 🎮 How It Works
-
-1. **Enter a level** — read the mission brief, hear the broken reference track
-2. **Write your solution** — Python or JavaScript, in a Monaco editor (same engine as VS Code)
-3. **Run your code** — the backend executes it safely and analyzes its structure via AST
-4. **Hear the result** — a trained ML model maps code features to audio layer weights
-5. **Reach 100% harmony** — the level completes and reveals a **song name**
-6. **Use the song name as the password** for the next level — just like Bandit
+- a Vite + React frontend for the gameplay experience
+- a Python FastAPI backend for execution and scoring
+- a level system with passwords, progression, and challenge metadata
+- a harmony-model scoring pipeline for evaluating code quality
 
 ---
 
-## 🧠 Code → Music Mapping
+## What the app does
 
-| Layer | Maps to |
-|---|---|
-| 🥁 Drums | Loops (`for`, `while`) |
-| 🎸 Chords | Conditions (`if`, `elif`) |
-| 🎵 Bass | Functions / class methods |
-| 🎶 Melody | Output correctness |
+Each level presents a programming challenge in a browser-based editor. The user writes a solution in Python or JavaScript, submits it, and the backend analyzes:
 
-Each layer has three states: **BROKEN** (not yet run), **DRIFTING** (partial), **IN SYNC** (correct).
+- syntax validity
+- loop and condition usage
+- function presence
+- runtime correctness
+- hidden test pass/fail conditions
+
+The evaluated result is translated into a harmony score and layered visual/audio feedback.
 
 ---
 
-## 🚀 Tech Stack
+## Tech stack
 
 ### Frontend
-- [React](https://reactjs.org/) — UI framework
-- [Monaco Editor](https://microsoft.github.io/monaco-editor/) — VS Code-powered code editor
-- [xterm.js](https://xtermjs.org/) — real terminal emulator
-- Web Audio API — layered audio playback engine
-- Plain CSS with CSS variables — cyberpunk theme
+- React 19
+- Vite
+- Monaco-style editor experience via `@monaco-editor/react`
+- xTerm integration for terminal-style feedback
+- Axios for API calls
+- CSS-based game interface
 
 ### Backend
-- [FastAPI](https://fastapi.tiangolo.com/) — REST API
-- Python `ast` module — code structure analysis
-- [scikit-learn](https://scikit-learn.org/) — `RandomForestRegressor` ML model
-- [joblib](https://joblib.readthedocs.io/) — model persistence
-- `subprocess` — sandboxed code execution (Python + JavaScript)
+- Python 3.12
+- FastAPI
+- `ast` parsing for Python code analysis
+- Node-based JavaScript analysis fallback
+- `subprocess` execution for code validation
+- joblib + scikit-learn model artifacts for harmony scoring
 
 ---
 
-## 📁 Project Structure
+## Repository structure
 
-```
+```text
 Codio/
+├── README.md
 ├── frontend/
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── vite.config.js
+│   ├── index.html
+│   ├── eslint.config.js
 │   ├── public/
-│   │   └── audio/              # Audio stem files (.wav / .mp3)
+│   │   ├── favicon.svg
+│   │   ├── icons.svg
+│   │   └── audio/
 │   └── src/
+│       ├── App.jsx
+│       ├── App.css
+│       ├── index.css
+│       ├── main.jsx
+│       ├── assets/
 │       ├── components/
-│       │   └── XTerminal.jsx   # xterm.js terminal component
+│       │   └── XTerminal.jsx
 │       ├── data/
-│       │   └── levels.js       # Level config (challenges, passwords, songs)
+│       │   └── levels.js
 │       ├── pages/
-│       │   ├── Landing.jsx     # Landing page
-│       │   ├── LevelSelect.jsx # Level selection + password system
-│       │   └── Level.jsx       # Game screen
-│       ├── utils/
-│       │   └── Mockrunner.js   # Local test runner (no backend needed)
-│       ├── App.jsx             # Routing
-│       └── App.css             # Global cyberpunk styles
-└── backend/
-    └── sprint1/
-        ├── main.py             # FastAPI server + endpoints
-        └── train_model.py      # ML model training script
+│       │   ├── Landing.jsx
+│       │   ├── Landing.css
+│       │   ├── LevelSelect.jsx
+│       │   ├── LevelSelect.css
+│       │   ├── Level.jsx
+│       │   └── Level.css
+│       └── utils/
+│           └── Mockrunner.js
+│
+└── frontend/backend/
+    ├── sprint1/
+    │   ├── main.py
+    │   ├── train_model.py
+    │   ├── analyze_js.js
+    │   ├── dump_levels.mjs
+    │   ├── verify_levels.py
+    │   ├── harmony_model.pkl
+    │   ├── harmony_model_meta.pkl
+    │   ├── package.json
+    │   ├── package-lock.json
+    │   └── venv/
+    └── harmony-backend/
+        └── venv/
 ```
 
 ---
 
-## ⚙️ Setup & Installation
+## Frontend app flow
+
+The frontend is organized around a screen-based flow:
+
+1. Landing screen
+2. Level selection screen
+3. Active challenge screen
+
+The main app state is managed in `frontend/src/App.jsx`, which switches between these screens and passes the currently selected level into the gameplay view.
+
+---
+
+## Backend behavior
+
+The primary backend service lives in `frontend/backend/sprint1/main.py` and exposes the following API endpoints:
+
+- `POST /run-code`
+  - runs submitted code
+  - returns stdout/stderr output
+  - performs basic AST-based analysis
+
+- `POST /analyze-code`
+  - runs code against expected output
+  - checks hidden tests for the level
+  - calculates harmony score from criteria
+  - returns per-layer score state
+
+The backend uses level-specific rules from `LEVEL_CRITERIA` and `LEVEL_HIDDEN_TESTS`, so scoring is driven by the server rather than by stale client-side assumptions.
+
+---
+
+## Level system
+
+Levels are defined in `frontend/src/data/levels.js` and include:
+
+- unique IDs and ordering
+- challenge names and descriptions
+- starter code for Python and JavaScript
+- expected outputs
+- validation criteria
+- password progression metadata
+- layer display and soundtrack references
+
+The project includes progression-based gameplay with hidden task validation and “song password” mechanics.
+
+---
+
+## Setup
 
 ### Prerequisites
-- Node.js >= 18
-- Python >= 3.10
+- Node.js 18+
+- Python 3.12+
+- npm
 - pip
-- Node.js (for JavaScript execution support)
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/codio.git
-cd codio
-```
-
-### 2. Frontend setup
+### Frontend
 
 ```bash
 cd frontend
@@ -115,163 +174,55 @@ npm install
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`
+The frontend runs at:
 
-### 3. Backend setup
+```text
+http://localhost:5173
+```
+
+### Backend
 
 ```bash
-cd backend/sprint1
+cd frontend/backend/sprint1
+python -m venv venv
+source venv/bin/activate
 pip install fastapi uvicorn scikit-learn joblib numpy
 ```
 
-### 4. Train the ML model
+Train the harmony model if needed:
 
 ```bash
 python train_model.py
 ```
 
-This generates `harmony_model.pkl` in the same directory.
-
-### 5. Start the backend
+Then start the API:
 
 ```bash
 python -m uvicorn main:app --reload
 ```
 
-Backend runs on `http://127.0.0.1:8000`
+The backend runs at:
 
-### 6. Add audio files
-
-Place your audio stem files in `frontend/public/audio/`:
-
-```
-public/audio/
-├── drums.wav       # Level 0 — drums layer
-├── chords.mp3      # Level 0 — chords layer
-├── bass.wav        # Level 0 — bass layer
-├── l1_drums.wav    # Level 1 — drums layer
-├── l1_chords.wav   # Level 1 — chords layer
-├── l1_bass.wav     # Level 1 — bass layer
-└── l1_melody.wav   # Level 1 — melody layer
+```text
+http://127.0.0.1:8000
 ```
 
 ---
 
-## 🎯 API Reference
+## Notes
 
-### `POST /analyze-code`
-
-Executes code, extracts features via AST, and returns ML-predicted harmony weights.
-
-**Request:**
-```json
-{
-  "code": "for i in range(5):\n    print(i)",
-  "language": "python",
-  "level_id": 0,
-  "expected_output": "0\n1\n2\n3\n4",
-  "loops_required": 1,
-  "conditions_required": 0,
-  "functions_required": 0,
-  "test_runner": ""
-}
-```
-
-**Response:**
-```json
-{
-  "output": "0\n1\n2\n3\n4",
-  "harmony_score": 100,
-  "layers": {
-    "drums":  { "weight": 1.0, "synced": true },
-    "chords": { "weight": 1.0, "synced": true },
-    "bass":   { "weight": 0.0, "synced": false },
-    "melody": { "weight": 0.0, "synced": false }
-  },
-  "analysis": {
-    "loops": 1,
-    "conditions": 0,
-    "function_presence": false,
-    "nested_depth": 2,
-    "syntax_error": false,
-    "correct_output": true
-  }
-}
-```
-
-### `POST /run-code`
-
-Executes code and returns raw output with basic AST analysis. No ML inference.
+- The active backend in this repository is under `frontend/backend/sprint1`, not at the repo root.
+- Audio assets are stored in `frontend/public/audio/` and are used as the layer soundtrack references for the game.
+- The project is currently a gameplay prototype with educational algorithm challenges, hidden tests, and music-inspired scoring.
 
 ---
 
-## 🔐 Level Progression
+## License
 
-Codio uses a **session-based password system** — nothing is saved between sessions.
-
-- **Level 0** is always accessible
-- Completing a level at 100% harmony reveals the **song name**
-- That song name is the **password** for the next level
-- On every new session, the password must be re-entered
-
-| Level | Challenge | Password to enter | Song revealed |
-|---|---|---|---|
-| 0 | Write a loop (0 to 4) | none | THE BEGINNING |
-| 1 | Complete isPalindrome | THE BEGINNING | CYBERPATH |
+MIT License
 
 ---
 
-## 🤖 ML Model
+## Project summary
 
-The harmony model is a `RandomForestRegressor` wrapped in `MultiOutputRegressor` from scikit-learn.
-
-**Input features (8):**
-```
-loops, conditions, function_presence, correct_output,
-nested_depth, loops_required, conditions_required, functions_required
-```
-
-**Output values (4):**
-```
-harmony_score (0–100), drum_weight (0–1), chord_weight (0–1), bass_weight (0–1)
-```
-
-Trained on ~60 manually crafted samples. To retrain:
-```bash
-python train_model.py
-```
-
-**Key property:** The model evaluates *what* constructs are present and whether the output is correct — not *how* the code is written. Any valid solution scores equally regardless of implementation style.
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Level 2+ (recursion, data structures, algorithms)
-- [ ] LLM-powered contextual hints
-- [ ] Adaptive difficulty based on user history
-- [ ] Java / TypeScript support
-- [ ] Auto-generate level configs from problem descriptions
-- [ ] Multiplayer mode — shared audio layers
-- [ ] Mobile version
-
----
-
-## 👥 Team
-
-| Role | Responsibility |
-|---|---|
-| Frontend + AI | React UI, ML integration, audio engine |
-| Backend | FastAPI, AST analysis, code execution, ML training |
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-  <sub>Built as a PFA project · 2026</sub>
-</div>
+Codio is an educational coding game that turns code writing into a harmonic challenge. It blends frontend interactivity, backend validation, and game-based progression to create a playful learning loop where correctness and structure both matter.
