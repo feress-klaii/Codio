@@ -35,7 +35,7 @@ VALID_CRITERION_KEYS = {
     "loops", "conditions", "functions",
     "no_syntax_error", "correct_output", "all_hidden_passed",
 }
-VALID_LAYERS = {"drums", "chords", "bass", "melody"}
+VALID_LAYERS = {"drums", "chords", "bass", "melody", "lead"}
 REQUIRED_LEVEL_FIELDS = [
     "id", "order", "title", "starterCode", "starterCodeJS",
     "expectedOutput", "expectedOutputJS", "criteria", "layerDisplay",

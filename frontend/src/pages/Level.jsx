@@ -9,16 +9,17 @@ import "./Level.css";
 // 🔧 SET TO true TO USE MOCK (no backend), false TO USE REAL BACKEND
 const USE_MOCK = false;
 
-const LAYER_DELAYS = {
-  drums:  0.6,
-  chords: 0.9,
-  bass:   0.4,
-  melody: 1.2,
-};
-
+const LAYER_DELAYS   = { drums: 0.6, chords: 0.9, bass: 0.4, melody: 1.2 };
 const BROKEN_OFFSETS = { drums: 0.8, chords: 1.4, bass: 0.6, melody: 1.9 };
-const MAX_ENTRY_DELAY = 2.2; // seconds — how late a badly-synced layer can join in
 const BROKEN_VOLUMES = { drums: 0.3, chords: 0.25, bass: 0.2, melody: 0.15 };
+
+const MAX_ENTRY_DELAY = 2.2; // seconds — how late a badly-synced layer can join in
+
+const getLayerDelay   = (key, index) => LAYER_DELAYS[key]   ?? (0.4 + index * 0.3);
+const getBrokenOffset = (key, index) => BROKEN_OFFSETS[key] ?? (0.6 + index * 0.4);
+const getBrokenVolume = (key, index) => BROKEN_VOLUMES[key] ?? Math.max(0.12, 0.3 - index * 0.03);
+
+
 
 const LANGUAGES = [
   { key: "python",     label: "Python",     monacoLang: "python"     },
@@ -59,12 +60,13 @@ function Level({ level, setScreen }) {
   const [brokenPlaying, setBrokenPlaying] = useState(false);
   const [refPlaying, setRefPlaying]       = useState(false);
   const [hintRevealed, setHintRevealed]   = useState(false);
-  const [layerStates, setLayerStates]     = useState({
-    drums:  { active: false, synced: false, volume: 0 },
-    chords: { active: false, synced: false, volume: 0 },
-    bass:   { active: false, synced: false, volume: 0 },
-    melody: { active: false, synced: false, volume: 0 },
-  });
+  const [layerStates, setLayerStates]     = useState(
+    Object.fromEntries(
+      Object.keys(level.layers)
+        .filter(k => level.layers[k] !== null)
+        .map(k => [k, { active: false, synced: false, volume: 0 }])
+    ),
+  );
 
   const termRef       = useRef(null);
   const editorRef     = useRef(null);
@@ -208,9 +210,9 @@ function Level({ level, setScreen }) {
 
   // ── Broken track ──
   const playBroken = () => {
-    Object.entries(brokenRefs.current).forEach(([key, audio]) => {
-      audio.volume      = BROKEN_VOLUMES[key] || 0.2;
-      audio.currentTime = BROKEN_OFFSETS[key] || 0.5;
+     Object.entries(brokenRefs.current).forEach(([key, audio], index) => {
+      audio.volume      = getBrokenVolume(key, index);
+      audio.currentTime = getBrokenOffset(key, index);
       audio.play().catch(() => {});
     });
     setBrokenPlaying(true);
@@ -227,12 +229,13 @@ function Level({ level, setScreen }) {
     Object.values(audioRefs.current).forEach(a => { a.pause(); a.currentTime = 0; });
     stopBroken();
     stopRef();
-    setLayerStates({
-      drums:  { active: false, synced: false, volume: 0 },
-      chords: { active: false, synced: false, volume: 0 },
-      bass:   { active: false, synced: false, volume: 0 },
-      melody: { active: false, synced: false, volume: 0 },
-    });
+    setLayerStates(
+      Object.fromEntries(
+        Object.keys(level.layers)
+          .filter(k => level.layers[k] !== null)
+          .map(k => [k, { active: false, synced: false, volume: 0 }])
+      )
+    );
     setHarmonyScore(0);
   };
 
@@ -314,7 +317,7 @@ function Level({ level, setScreen }) {
     Object.values(entryTimersRef.current).forEach(id => clearTimeout(id));
     entryTimersRef.current = {};
 
-    Object.entries(layers).forEach(([key, data]) => {
+    Object.entries(layers).forEach(([key, data], index) => {
       const audio = audioRefs.current[key];
       if (!audio) return;
 
@@ -340,7 +343,7 @@ function Level({ level, setScreen }) {
       }
     });
 
-    ["drums","chords","bass","melody"].forEach(k => {
+    layerKeys.forEach(k => {
       if (!newStates[k]) newStates[k] = { active: false, synced: false, volume: 0 };
     });
 
@@ -509,7 +512,7 @@ function Level({ level, setScreen }) {
   const currentLang   = LANGUAGES.find(l => l.key === language);
   const displayIndex  = orderedLevels.findIndex(l => l.id === level.id);
   const nextLevel     = orderedLevels[displayIndex + 1] || null;
-  const layerKeys     = ["drums","chords","bass","melody"].filter(k => level.layers[k] !== null);
+  const layerKeys     = Object.keys(level.layers).filter(k => level.layers[k] !== null);
 
   // Layer labels/descriptions come straight from levels.js now —
   // no per-level id branching needed here anymore.
@@ -552,7 +555,9 @@ function Level({ level, setScreen }) {
 
           {/* MISSION BRIEF */}
           <div className="challenge-block corner-accent">
-            <div className="challenge-label">[ MISSION BRIEF ]</div>
+            <div className="challenge-label">
+              {level.isBoss ? "[ BOSS PROTOCOL ]" : "[ MISSION BRIEF ]"}
+            </div>
             <p className="challenge-text">{level.challenge}</p>
             {level.examples && level.examples.length > 0 && (
               <div className="examples-list">
@@ -761,8 +766,10 @@ function Level({ level, setScreen }) {
 
           {/* SONG REVEAL */}
           {completed && (
-            <div className="song-reveal corner-accent">
-              <div className="song-reveal-label">[ LEVEL COMPLETE ]</div>
+           <div className={`song-reveal corner-accent ${level.isBoss ? "boss-reveal" : ""}`}>
+               <div className="song-reveal-label">
+                {level.isBoss ? "⚡ SYSTEM STABILIZED" : "[ LEVEL COMPLETE ]"}
+              </div>
               <div className="song-reveal-score">HARMONY: {harmonyScore}%</div>
               {!songRevealed ? (
                 <>

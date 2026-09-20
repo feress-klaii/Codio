@@ -58,7 +58,7 @@ function Landing({ setScreen }) {
         <div className="landing-footer">
           <span>[ CODIO PLATFORM ]</span>
           <span>[ EDUCATIONAL SYSTEM ]</span>
-          <span>[ 2 LEVELS ACTIVE ]</span>
+          <span>[ 8 LEVELS ACTIVE ]</span>
         </div>
       </div>
     </div>
